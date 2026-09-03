@@ -8,6 +8,7 @@ const posts = defineCollections({
   dir: 'content/posts',
   schema: pageSchema.extend({
     date: z.string(),
+    category: z.string().min(1),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
   }),
