@@ -18,20 +18,17 @@ export default function HomePage() {
         <p className="mt-4 text-base leading-7 text-fd-muted-foreground">
           记录 AI、Agent、前端开发与工程实践中的问题、原理和解决方案。
         </p>
-        <div className="mt-6">
-          <Link
-            href="#latest-posts"
-            className="inline-flex rounded-full bg-fd-primary px-3.5 py-1.5 text-sm font-medium text-fd-primary-foreground"
-          >
-            浏览文章
-          </Link>
-        </div>
       </section>
 
       <section id="latest-posts" className="border-t py-8 scroll-mt-20">
-        <div className="mb-5">
+        <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="text-xl font-semibold">最新文章</h2>
-          <p className="mt-1 text-sm text-fd-muted-foreground">从日常技术讨论中整理出的可复用笔记。</p>
+          <Link
+            href="#latest-posts"
+            className="text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground"
+          >
+            全部文章 →
+          </Link>
         </div>
         <div className="grid gap-4">
           {posts.map((post) => (
