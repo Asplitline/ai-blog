@@ -1,0 +1,527 @@
+---
+title: "Agent 工程周末学习计划：从 Skills 到团队 Harness 与 Runtime"
+description: "围绕 Superpowers、Vercel Skills、TeamAI CLI 和 PI-Desktop，用一个周末串起 Agent Skills、团队知识、运行时与产品工程。"
+date: "2026-09-11"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - Skills
+  - Harness
+  - Learning Plan
+draft: false
+---
+
+最近 GitHub Trending 上出现了一批值得长期关注的 Agent 工程项目。单独收藏这些仓库价值有限，更有效的方式是沿着一条主线去学习：**Agent 如何从一个会调用工具的模型，演进成可复用、可治理、可长期运行的工程系统。**
+
+这个周末只集中看四个项目：
+
+- [obra/superpowers](https://github.com/obra/superpowers)：学习软件工程方法如何被封装成 Skills。
+- [vercel-labs/skills](https://github.com/vercel-labs/skills)：理解 Skill 的安装、分发和生态形态。
+- [Tencent/teamai-cli](https://github.com/Tencent/teamai-cli)：理解团队如何统一 Skills、Rules、MCP、知识和经验。
+- [vastsa/PI-Desktop](https://github.com/vastsa/PI-Desktop)：理解完整 Agent 产品中的 Runtime、Permission、Session、Subagent 和 Desktop 架构。
+
+学习顺序是：
+
+```text
+Skills
+  ↓
+Skill Distribution
+  ↓
+Team Harness / Knowledge
+  ↓
+Agent Runtime / Product
+```
+
+## 本周末目标
+
+周末结束时，希望真正搞清楚三个层次：
+
+```text
+Skill
+  ↓
+约束 Agent 在某类任务中怎么做
+
+Harness
+  ↓
+组织 Skills、Rules、Hooks、Memory、MCP 和团队经验
+
+Runtime
+  ↓
+真正负责 Agent Loop、Tool Execution、Permission、Session、Model 和状态管理
+```
+
+完成标准不是“看完四个 README”，而是留下四个可复用产物：
+
+1. 一个自己的 `frontend-debugging/SKILL.md`。
+2. 一张 `Skill → Harness → Runtime` 关系图。
+3. 一张 PI-Desktop 架构拆解图。
+4. 一份“我的 Coding Agent Desktop”设计草稿。
+
+---
+
+## 周六：Skills 与团队 Harness
+
+预计学习时间：**5～6 小时**。
+
+| 时间 | 学习内容 | 目标产出 |
+| --- | --- | --- |
+| 09:30–10:30 | Superpowers | 搞懂 Skill 如何约束 Agent 开发流程 |
+| 10:40–11:40 | Vercel Skills | 搞懂 Skill 的目录、安装和分发 |
+| 14:00–16:00 | TeamAI CLI | 理解 Team Execution / Context / Improvement |
+| 16:15–17:15 | 三者对比 | 画一张 Skill → Harness 关系图 |
+| 20:00–21:00 | 自己写 Skill | 完成 `frontend-debugging/SKILL.md` |
+
+### 1. Superpowers：先理解一个好 Skill 怎么设计
+
+项目地址：[obra/superpowers](https://github.com/obra/superpowers)
+
+这次不泛读整个仓库，只挑四个和日常开发最相关的 Skill：
+
+- `brainstorming`
+- `writing-plans`
+- `test-driven-development`
+- `systematic-debugging`
+
+阅读每个 Skill 时，只回答五个问题：
+
+1. 什么情况下触发？
+2. 输入是什么？
+3. 它要求 Agent 按什么顺序执行？
+4. 哪些步骤属于硬约束？
+5. 怎么判断任务真的完成？
+
+重点理解下面这个过程：
+
+```text
+用户需求
+  ↓
+Skill Trigger
+  ↓
+约束 Agent 行为
+  ↓
+Tool Execution
+  ↓
+Verification
+  ↓
+完成
+```
+
+这里最值得思考的问题是：**为什么这些工程规范适合拆成 Skill，而不是全部塞进 AGENTS.md 或系统提示词。**
+
+学习目标是理解 Skill 的边界：它应该解决一类稳定、重复出现的问题，并给 Agent 一个可验证的执行流程。
+
+### 2. Vercel Skills：理解 Skill 如何成为可分发的软件包
+
+项目地址：[vercel-labs/skills](https://github.com/vercel-labs/skills)
+
+Superpowers 更偏“Skill 应该写什么”，Vercel Skills 更适合观察 Skill 的生态和分发层。
+
+重点看一个 Skill 的基本组成：
+
+```text
+skill/
+├── SKILL.md
+├── scripts/
+├── references/
+└── assets/
+```
+
+需要搞清楚这些问题：
+
+- Skill 怎么被 Agent 发现？
+- Skill 怎么安装？
+- Skill 怎么按需加载？
+- `SKILL.md` 负责什么？
+- 脚本、参考资料和资源分别放什么？
+- Skill 怎么跨多个 Coding Agent 使用？
+
+看完后开始设计自己的第一个 Skill：`frontend-debugging`。
+
+它可以覆盖我平时最常见的前端问题：
+
+```text
+React / Next.js
+ECharts
+Network
+Console
+iOS H5
+滚动与布局
+状态同步
+```
+
+执行流程先保持简单：
+
+```text
+复现
+  ↓
+检查 Console / Network
+  ↓
+缩小问题范围
+  ↓
+提出 Hypothesis
+  ↓
+修改
+  ↓
+验证
+  ↓
+Regression Test
+```
+
+### 3. TeamAI CLI：周六的重点
+
+项目地址：[Tencent/teamai-cli](https://github.com/Tencent/teamai-cli)
+
+这里建议至少留两个小时。
+
+TeamAI 要解决的问题是：团队成员可能分别使用 Claude Code、Codex、Cursor、OpenCode，团队仍然希望大家共享同一套工程规范和知识。
+
+可以先建立下面这个模型：
+
+```text
+                    Team Repo
+                       │
+          ┌────────────┼────────────┐
+          │            │            │
+       Skills        Rules       Knowledge
+          │            │            │
+          └────── TeamAI CLI ───────┘
+                       │
+          ┌────────────┼────────────┐
+          │            │            │
+       Codex      Claude Code     Cursor
+```
+
+重点研究五个问题：
+
+1. Skill / Rule 怎么从团队仓库同步到开发者电脑？
+2. Claude Code、Codex、Cursor 等不同 Agent 的配置差异怎么抹平？
+3. `Session → Learning → Team Knowledge` 怎么形成闭环？
+4. Recall 为什么适合交给独立 Subagent？
+5. friction-based learning 怎么判断一个 Session 值得沉淀？
+
+我最想吃透的是 TeamAI 的经验沉淀逻辑：
+
+```text
+开发过程
+   ↓
+用户纠正 / Agent 失败 / Tool 重试
+   ↓
+Friction Signal
+   ↓
+提取经验
+   ↓
+Review
+   ↓
+Team Knowledge
+   ↓
+后续 Agent Recall
+```
+
+这对应 Agent Engineering 中一个很关键的问题：**什么信息值得进入 Memory。**
+
+相比“把所有聊天记录向量化”，从高价值事件中提取经验，更接近真正可维护的团队知识系统。
+
+### 4. 周六晚上：完成一个真实 Skill
+
+最后一个小时不继续看仓库，直接写：
+
+```text
+frontend-debugging/
+└── SKILL.md
+```
+
+最少包含：
+
+```markdown
+---
+name: frontend-debugging
+description: ...
+---
+
+# Frontend Debugging
+
+## Trigger
+
+## Diagnosis workflow
+
+## Browser inspection
+
+## Hypothesis
+
+## Fix
+
+## Verification
+
+## Completion criteria
+```
+
+周六结束时，希望从“我看过很多 Agent Skills”推进到“我知道一个好的 Skill 为什么这样设计，而且自己写过一个”。
+
+---
+
+## 周日：Agent Runtime 与产品工程
+
+预计学习时间：**5～6 小时**。
+
+| 时间 | 学习内容 | 目标产出 |
+| --- | --- | --- |
+| 09:30–11:30 | PI-Desktop 架构 | Agent Desktop 架构图 |
+| 14:00–15:30 | Agent / Plan / Goal | 理解 Autonomy Control |
+| 15:40–17:00 | Permission / Session / Subagent | 补齐 Agent 产品工程知识 |
+| 20:00–21:30 | 小型设计题 | 设计自己的 Coding Agent Desktop |
+
+### 1. PI-Desktop：理解一个完整 Agent 产品
+
+项目地址：[vastsa/PI-Desktop](https://github.com/vastsa/PI-Desktop)
+
+先看它的核心架构：
+
+```text
+React Renderer
+      │
+      ▼
+Electron Main
+   ↙       ↘
+Rust Host   Agent Sidecar
+   │             │
+FS / DB       Agent Loop
+Secrets        Models
+Permission     Tools
+```
+
+这里需要重点理解三个问题。
+
+#### 为什么 Agent Loop 要独立出来？
+
+关注：
+
+- Context
+- Streaming
+- Model lifecycle
+- Tool execution
+- Crash isolation
+
+#### 为什么 Renderer 不直接操作文件？
+
+关注：
+
+- Permission boundary
+- Privileged operations
+- Security
+
+#### 为什么需要独立 Host Core？
+
+看它如何承接：
+
+```text
+Filesystem
+SQLite
+Secrets
+Permission
+```
+
+这一部分很适合补前端开发者进入 Agent 应用工程后容易欠缺的系统层知识。
+
+### 2. Agent / Plan / Goal：理解不同自治等级
+
+PI-Desktop 的三个模式值得单独研究。
+
+Agent 模式：
+
+```text
+Prompt
+  ↓
+理解
+  ↓
+修改
+  ↓
+测试
+  ↓
+继续迭代
+```
+
+Plan 模式：
+
+```text
+Prompt
+  ↓
+Explore
+  ↓
+Plan
+  ↓
+用户 Approval
+  ↓
+Execute
+```
+
+Goal 模式：
+
+```text
+Goal
++
+Acceptance Criteria
+  ↓
+Agent 自主规划
+  ↓
+自主执行
+  ↓
+直到达到目标
+```
+
+这三个模式可以理解为不同的 **Autonomy Level**。
+
+真正需要掌握的是：在人和 Agent 之间，审批边界应该放在哪里。低风险任务可以让 Agent 直接执行；大型改动可以先审批 Plan；结果明确、路径开放的问题可以围绕 Goal 和 Acceptance Criteria 工作。
+
+### 3. Permission：Agent 产品必须有的控制层
+
+尝试给常见 Tool Call 做风险分类：
+
+```text
+read file
+write file
+rm -rf
+git push
+npm install
+curl
+读取 secrets
+```
+
+然后设计：
+
+```text
+Tool Call
+   ↓
+Risk Classification
+   ↓
+Allow / Ask / Deny
+   ↓
+Execution
+```
+
+这一层决定 Agent 能否安全地从 Demo 进入真实开发环境。
+
+### 4. Session：Agent 产品的核心数据结构
+
+重点建立下面这个模型：
+
+```text
+Session
+├── messages
+├── tool calls
+├── checkpoints
+├── context
+├── branch
+└── artifacts
+```
+
+当 Agent 开始长时间运行、分支会话、恢复任务、并发 Subagent 后，Session 已经不只是聊天记录，而是一个完整的执行状态容器。
+
+### 5. Subagent：先掌握隔离，再谈 Multi-Agent
+
+可以从最简单的结构理解：
+
+```text
+Parent Agent
+   │
+   ├── Explore Agent
+   ├── Test Agent
+   ├── Research Agent
+   └── Review Agent
+```
+
+重点理解三个价值：
+
+```text
+Context isolation
+Parallelism
+Specialization
+```
+
+在继续研究复杂 Multi-Agent Framework 之前，先把 Parent / Subagent 的职责边界理解清楚。
+
+---
+
+## 周日晚上：设计自己的 Coding Agent Desktop
+
+最后做一个小型设计题：
+
+> 为前端团队设计一个 Coding Agent Desktop。
+
+架构图至少包含：
+
+```text
+React UI
+Agent Runtime
+Model Provider
+Tools
+MCP
+Skills
+Permission
+Session
+Memory
+Subagent
+Team Knowledge
+```
+
+然后回答五个问题：
+
+1. Agent 如何读取项目？
+2. Tool 权限怎么控制？
+3. Skill 怎么加载？
+4. Session 怎么保存？
+5. 团队经验怎么进入下一次 Agent Session？
+
+可以把两天看到的四个项目重新拼起来：
+
+```text
+Superpowers
+    ↓
+Software Engineering Skills
+
+Vercel Skills
+    ↓
+Skill Distribution
+
+TeamAI CLI
+    ↓
+Team Harness / Knowledge
+
+PI-Desktop
+    ↓
+Runtime / Product
+```
+
+最终形成自己的 Agent 工程知识图：
+
+```text
+                      Agent Application
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+       UX                 Harness              Runtime
+        │                    │                    │
+ Agent/Plan/Goal      Skills / Rules        Agent Loop
+ Permission           Team Knowledge        Tools
+ Review               Memory                Models
+        │                    │                    │
+        └────────────────────┼────────────────────┘
+                             │
+                         Infrastructure
+                             │
+                  Gateway / MCP / Sandbox
+```
+
+---
+
+## 下一阶段再看什么
+
+这个周末先把 Skill、Harness、Runtime 三层串起来，本地模型和 Gateway 放到下一阶段。
+
+后续可以继续看：
+
+- [AlexsJones/llmfit](https://github.com/AlexsJones/llmfit)：硬件检测、本地模型选型、Quantization 和 Benchmark。
+- [diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute)：AI Gateway、Model Routing、Fallback、Quota。
+- [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)：Memory、Skills、自学习、Cron、Subagent 和多入口 Agent Runtime。
+- [anomalyco/opencode](https://github.com/anomalyco/opencode)：完整开源 Coding Agent 的 Runtime 与 Tool Calling 实现。
+
+这个周末的优先级保持明确：**先把 Skill → Harness → Runtime 串成一个完整体系，再继续向 Local LLM、Gateway 和更复杂的 Multi-Agent 扩展。**
