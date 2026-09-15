@@ -1,0 +1,533 @@
+---
+title: "Agent Engineering 学习周报 #1：从 Skills 到 Harness、Runtime 与 Team Context"
+description: "整理 2026-09-07 ～ 2026-09-13 GitHub Trending 中值得长期关注的 Agent Engineering 项目，并把热点归纳成可学习的技术主线。"
+date: "2026-09-15"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Skills
+  - Harness
+  - Runtime
+  - Weekly Review
+draft: false
+---
+
+> 周报范围：2026-09-07 ～ 2026-09-13。
+>
+> 目标不是重复 GitHub Trending 榜单，而是把一周里出现的高价值项目整理成一条可持续学习的 Agent Engineering 路线。
+
+## 本周结论
+
+这一周最明显的变化，是 Agent 生态开始从“模型 + Tool Calling”继续向工程化分层：
+
+```text
+Skills
+  ↓
+Harness
+  ↓
+Team Context / Memory
+  ↓
+Runtime / Product
+  ↓
+Local Inference / Gateway
+```
+
+如果只看 Star，很容易把这些项目当成一批互不相关的热门仓库；把它们放到同一张图里之后，可以看到 Agent 工程正在逐渐形成稳定的软件栈。
+
+```text
+                        Agent Application
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                      │
+      Skills                 Harness               Runtime
+        │                      │                      │
+ Superpowers              TeamAI / ECC          OpenCode
+ mattpocock/skills         Hermes               PI-Desktop
+ diagram-design            HumanLayer              │
+        │                      │                      │
+        └──────────────────────┼──────────────────────┘
+                               │
+                         Infrastructure
+                               │
+                     Local LLM / Gateway
+                    Magnitude / llmfit
+                        OmniRoute
+```
+
+本周最值得学习的不是某一个“最强 Agent Framework”，而是理解这些层之间的职责边界。
+
+---
+
+## 一、Skills 正在从提示词技巧变成工程资产
+
+本周多个 Trending 项目都在围绕 Skills 展开。
+
+### [obra/superpowers](https://github.com/obra/superpowers)
+
+Superpowers 把软件开发过程拆成一组可复用工作流，例如 brainstorming、writing-plans、test-driven-development、systematic-debugging、code review 和 verification。
+
+它最值得学习的地方，是把“高级工程师的工作习惯”编码成 Agent 必须遵循的流程：
+
+```text
+需求
+ ↓
+澄清 / Brainstorm
+ ↓
+Plan
+ ↓
+TDD / Implement
+ ↓
+Debug
+ ↓
+Review
+ ↓
+Verification
+```
+
+这类 Skill 的价值在于稳定行为，而不是增加模型知识。
+
+### [mattpocock/skills](https://github.com/mattpocock/skills)
+
+这个仓库更加偏向真实工程场景，包含 `grill-with-docs`、`triage`、`implement`、`diagnosing-bugs`、`research`、`tdd`、`domain-modeling`、`code-review` 等 Skill。
+
+它非常适合作为 Skill 设计参考，因为很多能力都围绕一个问题：**怎样让 Agent 少猜、先确认上下文、形成反馈闭环。**
+
+### [vercel-labs/skills](https://github.com/vercel-labs/skills)
+
+它代表另一个重要方向：Skill 不只是文件，还需要安装和分发体系。
+
+可以把它理解成：
+
+```text
+npm            → JavaScript Package
+pip            → Python Package
+skills tooling → Agent Skill
+```
+
+一旦 Skills 成为通用接口，后续一定会需要 Discover、Install、Update、Version、Marketplace 等生态能力。
+
+### [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design)
+
+这是很好的“专业能力 Skill 化”案例。它把架构图、流程图、Sequence、ER、State、Swimlane、Sankey、Gantt、Dependency、Deployment 等图形生成能力封装成 Coding Agent 可调用的 Skill。
+
+这说明 Skills 正在从“怎么回答”扩大到“怎么完成专业任务”。
+
+### 本周对 Skills 的理解
+
+```text
+Prompt
+= 一次性指令
+
+Rule
+= 长期约束
+
+Skill
+= 某类任务的可复用执行流程 + 资源 + 验证方式
+```
+
+这会是后续学习 Agent Harness 的基础。
+
+---
+
+## 二、Harness 开始成为 Agent 工程的核心层
+
+Skill 再多，如果没有统一组织方式，很快就会变成一堆 Markdown 文件。
+
+本周值得重点看的 Harness 项目有三个。
+
+### [Tencent/teamai-cli](https://github.com/Tencent/teamai-cli)
+
+TeamAI 面向团队解决：不同开发者使用 Claude Code、Codex、Cursor、OpenCode 等不同 Agent 时，怎样共享同一套：
+
+```text
+Skills
+Rules
+Docs
+Hooks
+MCP
+Agents
+Environment
+Knowledge
+Learnings
+```
+
+它可以被理解成团队级 Agent Harness 分发层。
+
+最值得继续研究的是它的经验沉淀机制：
+
+```text
+Agent Session
+ ↓
+用户纠正 / Tool 重试 / 执行失败
+ ↓
+Friction Signal
+ ↓
+提取 Learning
+ ↓
+Review
+ ↓
+Team Knowledge
+ ↓
+未来 Session Recall
+```
+
+这里提出了一个比“如何做 Vector DB”更重要的问题：**什么信息值得进入长期 Memory。**
+
+### [affaan-m/ECC](https://github.com/affaan-m/ECC)
+
+ECC 的定位是 Coding Agent Harness，把 Plan、Test、Implement、Review、Verify、Memory 和持续改进组织成一套工程系统。
+
+可以把它理解成：
+
+```text
+Model
+  +
+Tools
+  +
+Rules
+  +
+Skills
+  +
+Memory
+  +
+Verification
+  =
+Engineering Harness
+```
+
+它覆盖范围很广，适合用来观察一个成熟 Harness 会包含哪些模块，不一定需要完整采用。
+
+### [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
+
+Hermes 更接近长期运行的 Personal Agent Runtime + Harness。
+
+值得关注的能力包括：
+
+```text
+Persistent Memory
+Skill Creation
+Session Search
+User Modeling
+Cron / Automation
+Subagents
+Docker / SSH / Sandbox
+```
+
+它开始把 Agent 从“一次聊天任务”推进到“长期存在的软件实体”。
+
+### 本周对 Harness 的理解
+
+Harness 可以暂时定义为：
+
+```text
+Harness
+├── Prompt / Rules
+├── Skills
+├── Tool Registry
+├── Hooks
+├── Memory
+├── Context
+├── Verification
+├── Permission
+└── Execution Workflow
+```
+
+模型决定上限，Harness 很大程度决定 Agent 在真实工程中的稳定性。
+
+---
+
+## 三、Team Context 与 Memory 比 RAG 本身更值得研究
+
+这一周多个项目都在暗示：Agent Memory 正在从“聊天记录向量化”转向结构化经验。
+
+TeamAI 的 Learning、Hermes 的持久记忆，以及 HumanLayer 的 Agent Workflow 都在强调：
+
+```text
+原始 Session
+    ↓
+筛选高价值信息
+    ↓
+结构化 Learning / Skill / Context
+    ↓
+未来任务按需 Recall
+```
+
+### [humanlayer/skills](https://github.com/humanlayer/skills)
+
+HumanLayer 的 Skill 很有工程味，包括：
+
+- 改进 `CLAUDE.md`
+- 收窄 React Prop 类型
+- 构建持续迭代 Agent Loop
+- 设计控制循环
+- 快速生成代码 / 图示说明
+
+其中 `build-iterated-agentic-loop` 很值得关注，因为它把 Agent、GitHub Actions、Prompt、Memory、模板和迭代流程连接了起来。
+
+这一类项目说明：Memory 最终可能不会独立存在，而是和 Workflow、Skill、Eval 一起组成一个持续改进闭环。
+
+---
+
+## 四、Agent Runtime 正在成为独立产品层
+
+### [anomalyco/opencode](https://github.com/anomalyco/opencode)
+
+OpenCode 是本周最值得作为“Coding Agent Runtime”源码参考的项目之一。
+
+它适合重点观察：
+
+```text
+Agent Loop
+Tool Calling
+Provider Abstraction
+Permission
+TUI
+Plan / Build Agent
+Subagent
+```
+
+如果想真正理解 Coding Agent 的运行过程，读 OpenCode 比继续看抽象 Framework 更直接。
+
+### [vastsa/PI-Desktop](https://github.com/vastsa/PI-Desktop)
+
+PI-Desktop 展示了 Agent 真正进入产品之后，需要补齐多少工程能力。
+
+它的核心架构可以概括为：
+
+```text
+React Renderer
+      │
+Electron Main
+   ↙       ↘
+Rust Host   Agent Sidecar
+   │             │
+FS / DB       Agent Loop
+Secrets        Models
+Permission     Tools
+```
+
+重点已经超出 LLM 本身，进入：
+
+```text
+Session
+Permission
+Secrets
+Process Isolation
+Persistence
+Recovery
+Plugin
+Review UI
+Subagent
+```
+
+这对前端开发者理解“AI 产品工程”尤其重要。
+
+### [bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view)
+
+God's Eye View 是本周很好的 Agent UX 案例。
+
+它把实时 3D 地球、飞机、船舶、卫星、地震、公共摄像头和 AI Voice Agent 放进同一个复杂 GUI。
+
+Agent 可以读取当前 Scene、Camera、Coordinates、Selected Entity 和 Telemetry，再操作地图工具。
+
+它说明 AI 产品不需要把 Chat Window 当成唯一入口：
+
+```text
+                 Agent
+          ↙        ↓        ↘
+       Camera     Data      Tools
+          ↓        ↓          ↓
+             Application UI
+```
+
+这是值得长期关注的 Agent UX 方向。
+
+---
+
+## 五、本地推理和 Gateway 开始补齐 Agent 基础设施
+
+本周另外一条明显主线，是 Agent Runtime 和 Model Runtime 逐渐解耦。
+
+### [magnitudedev/magnitude](https://github.com/magnitudedev/magnitude)
+
+Magnitude 会分析本机硬件，选择适合的 Local Model，并提供统一推理服务给 Codex、Claude Code、OpenCode 等 Agent 使用。
+
+### [AlexsJones/llmfit](https://github.com/AlexsJones/llmfit)
+
+llmfit 更专注硬件匹配和 Benchmark：
+
+```text
+CPU / RAM / GPU / VRAM
+ ↓
+Model
+ ↓
+Quantization
+ ↓
+预计速度 / 实测 tok/s
+```
+
+这类工具说明 Local LLM 正从“下载 Ollama 自己试”走向更成熟的模型选择与运行层。
+
+### [diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute)
+
+OmniRoute 对应的是 AI Gateway：
+
+```text
+Agent
+  ↓
+Gateway
+  ↓
+Model Routing
+Fallback
+Quota
+Cost
+Compression
+  ↓
+LLM Providers
+```
+
+以后企业 Agent 很可能不会直接绑定单一 Provider，而是统一经过 Gateway 做治理。
+
+---
+
+## 六、本周项目优先级
+
+按“当前学习价值”排序，我会把上周收集到的项目分成三层。
+
+### 第一层：建议真正读源码 / 文档
+
+| 项目 | 重点 |
+| --- | --- |
+| [obra/superpowers](https://github.com/obra/superpowers) | Skill 与软件工程方法论 |
+| [Tencent/teamai-cli](https://github.com/Tencent/teamai-cli) | Team Harness、Knowledge、Learning |
+| [anomalyco/opencode](https://github.com/anomalyco/opencode) | Coding Agent Runtime |
+| [vastsa/PI-Desktop](https://github.com/vastsa/PI-Desktop) | Agent 产品架构、Permission、Session |
+| [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) | Persistent Agent、Memory、Subagent |
+
+### 第二层：重点理解架构方向
+
+| 项目 | 重点 |
+| --- | --- |
+| [affaan-m/ECC](https://github.com/affaan-m/ECC) | 大型 Coding Agent Harness |
+| [humanlayer/skills](https://github.com/humanlayer/skills) | Repo-local Agent Workflow |
+| [vercel-labs/skills](https://github.com/vercel-labs/skills) | Skill 分发生态 |
+| [magnitudedev/magnitude](https://github.com/magnitudedev/magnitude) | Local Model Runtime |
+| [diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute) | AI Gateway |
+
+### 第三层：直接拿来用 / 快速观察
+
+| 项目 | 用途 |
+| --- | --- |
+| [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | 架构图 / 流程图 Skill |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | 工程 Skills 参考库 |
+| [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) | Agent 输出 UX 规则 |
+| [bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) | Agent + Complex GUI 产品案例 |
+
+---
+
+## 七、本周形成的知识图
+
+把上周项目放在一起，可以得到一张更完整的 Agent Engineering Map：
+
+```text
+                     Agent Engineering
+                            │
+       ┌────────────────────┼────────────────────┐
+       │                    │                    │
+     Skills               Harness             Runtime
+       │                    │                    │
+ Superpowers            TeamAI              OpenCode
+ Matt Skills            ECC                 PI-Desktop
+ Diagram Design         Hermes                 │
+       │                    │                    │
+       └────────────── Context / Memory ────────┘
+                            │
+                 Learning / Recall / Session
+                            │
+                   Infrastructure Layer
+                            │
+             Local Inference / AI Gateway
+             Magnitude / llmfit / OmniRoute
+```
+
+当前最重要的学习目标，是把这张图从“知道名词”推进到“能解释每层为什么存在、数据怎么流、权限怎么控制、状态怎么持久化”。
+
+---
+
+## 八、下一周学习重点
+
+下周学习不继续铺更多仓库，优先沿已有主线深入。
+
+### 1. Skill
+
+阅读 [Superpowers](https://github.com/obra/superpowers) 中的：
+
+```text
+brainstorming
+writing-plans
+test-driven-development
+systematic-debugging
+```
+
+然后完成自己的 `frontend-debugging/SKILL.md`。
+
+### 2. Harness
+
+深入 [TeamAI CLI](https://github.com/Tencent/teamai-cli)：
+
+```text
+Skill distribution
+Friction-based learning
+Recall subagent
+Team Knowledge
+```
+
+目标是回答：**团队经验怎么进入下一次 Agent Session？**
+
+### 3. Runtime
+
+对照阅读：
+
+- [OpenCode](https://github.com/anomalyco/opencode)
+- [PI-Desktop](https://github.com/vastsa/PI-Desktop)
+
+重点搞清楚：
+
+```text
+Agent Loop
+Session
+Permission
+Tool Execution
+Subagent
+Persistence
+```
+
+### 4. 输出
+
+下一阶段至少留下三个自己的产物：
+
+```text
+frontend-debugging/SKILL.md
+Skill → Harness → Runtime 架构图
+自己的 Coding Agent Desktop 设计草稿
+```
+
+---
+
+## 最后
+
+上周最大的收获，是 Agent Engineering 的学习路径开始变得清晰。
+
+后续可以暂时减少对“又出现了哪个 Agent Framework”的关注，把主要精力放到几个长期问题上：
+
+```text
+Agent 如何稳定执行？
+Agent 如何获得正确 Context？
+Agent 如何积累 Memory？
+Agent 如何被权限系统约束？
+Agent 如何长期运行？
+Agent 如何进入真实产品？
+```
+
+只要持续沿着 **Skills → Harness → Context → Runtime → Infrastructure** 这条链路深入，GitHub Trending 就能从“项目收藏榜”变成真正的 Agent Engineering 学习雷达。
