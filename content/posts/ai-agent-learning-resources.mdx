@@ -1,0 +1,848 @@
+---
+title: "AI Agent 开源学习资料：从基础原理到 Agent Harness 与生产工程"
+description: "持续整理值得系统学习的 AI Agent 开源课程、教材和工程项目，并按 Agent 基础、Context Engineering、Harness、MCP、Evaluation 与生产工程组织学习路线。"
+date: "2026-09-16"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - Agent Engineering
+  - Deep Agents
+  - LangGraph
+  - MCP
+  - Context Engineering
+  - Learning
+  - Open Source
+draft: false
+---
+
+> 这是一篇长期维护的 AI Agent 学习资料索引。
+>
+> 当前目标：从 Agent 基础原理开始，逐步进入 Agent Harness、Context Engineering、MCP、Multi-Agent、Evaluation 和生产级 Agent 工程。
+
+## 学习路线
+
+目前比较认可的一条路线：
+
+```text
+Agent 基础原理
+      ↓
+Tool Calling / Agent Loop / ReAct
+      ↓
+Memory / RAG / Planning
+      ↓
+Context Engineering
+      ↓
+Agent Harness
+      ↓
+Skills / MCP / Subagents
+      ↓
+Evaluation / Observability
+      ↓
+Production Agent
+      ↓
+Coding Agent / General Agent
+```
+
+对应到具体学习资料：
+
+```text
+AI Agents in Depth
+        ↓
+Deep Agents 实战
+        ↓
+Hugging Face Agents Course
+        ↓
+Agents From Scratch
+        ↓
+Deep Agents / Deep Agents JS
+        ↓
+Agentic AI Engineering
+        ↓
+阅读真实 Agent 项目源码
+```
+
+当前优先学习两套主课程：
+
+1. [`bojieli/ai-agent-book`](https://github.com/bojieli/ai-agent-book)
+2. [`datawhalechina/deepagents-in-action`](https://github.com/datawhalechina/deepagents-in-action)
+
+---
+
+## 1. AI Agents in Depth
+
+**仓库：[`bojieli/ai-agent-book`](https://github.com/bojieli/ai-agent-book)**
+
+**在线阅读：[AI Agents in Depth](https://bojieli.github.io/ai-agent-book/astro/)**
+
+这套资料适合作为 Agent 第一套主教材，用来建立完整心智模型。
+
+重点关注：
+
+- Agent 到底是什么
+- Agent Loop 如何工作
+- Context 在 Agent 中扮演什么角色
+- Tool Calling 为什么重要
+- Memory、Planning、RAG 如何组合
+- Agent 系统如何从简单循环逐渐演化成复杂系统
+
+### 学习定位
+
+**Agent 第一套主教材。**
+
+阅读时重点建立整体心智模型，优先理解设计原因，再进入具体框架实现。
+
+---
+
+## 2. Deep Agents 实战
+
+**仓库：[`datawhalechina/deepagents-in-action`](https://github.com/datawhalechina/deepagents-in-action)**
+
+**在线课程：[Deep Agents 实战](https://datawhalechina.github.io/deepagents-in-action/)**
+
+Datawhale 的中文开源课程，围绕 LangChain / LangGraph / Deep Agents 展开，目前提供 16 章图文、视频和实验模板。
+
+课程从第一个 Agent 一路进入任务规划、文件系统、Subagents 和 Context Management。
+
+```text
+认知篇
+├─ Agent Framework → Agent Harness
+└─ 第一个 Deep Agent
+
+核心篇
+├─ Virtual Filesystem
+├─ Context Engineering
+├─ Task Planning
+├─ Subagents
+└─ Async Subagents
+
+进阶篇
+├─ Skills
+├─ Long-term Memory
+├─ Human-in-the-Loop
+├─ Sandbox
+├─ Filesystem Permissions
+└─ MCP
+
+前沿
+├─ Grading Rubrics
+├─ Streaming
+├─ Interpreters
+└─ Dynamic Subagents
+```
+
+重点关注：
+
+```text
+Agent Harness
+Context Engineering
+Filesystem
+Planning
+Subagents
+Skills
+MCP
+Sandbox
+```
+
+### 学习定位
+
+**Agent 第二套主课程。**
+
+`ai-agent-book` 负责建立 Agent 心智模型，`deepagents-in-action` 负责把理论逐步落到现代 Agent Harness。
+
+这套课程计划认真跑实验，重点观察 Deep Agents 如何处理 Context、Filesystem、Planning、Subagent 和 MCP。
+
+---
+
+## 3. Hugging Face Agents Course
+
+**仓库：[`huggingface/agents-course`](https://github.com/huggingface/agents-course)**
+
+**课程网站：[Hugging Face Agents Course](https://huggingface.co/learn/agents-course)**
+
+Hugging Face 官方 Agent 课程，适合横向理解不同 Agent Framework 的共同抽象。
+
+主要覆盖：
+
+```text
+Agent 基础
+↓
+Function Calling
+↓
+smolagents
+↓
+LlamaIndex
+↓
+LangGraph
+↓
+Agentic RAG
+↓
+Observability / Evaluation
+↓
+Final Project
+```
+
+### 学习定位
+
+**Agent 基础补充课程。**
+
+重点观察不同框架如何实现 Tool、Memory、Planning 和 Agent Loop，框架 API 按需学习。
+
+---
+
+## 4. Microsoft AI Agents for Beginners
+
+**仓库：[`microsoft/ai-agents-for-beginners`](https://github.com/microsoft/ai-agents-for-beginners)**
+
+微软维护的 Agent 入门课程，包含 Agent 基础、设计模式、Framework、生产部署、本地 Agent、安全等内容。
+
+当前技术栈比较偏 Microsoft Agent Framework、Foundry 和 Azure AI。
+
+### 学习定位
+
+**补充资料。**
+
+重点看 Agent Design Pattern、Production 和安全相关章节，微软生态代码按需阅读。
+
+---
+
+## 5. LangChain Agents From Scratch
+
+**仓库：[`langchain-ai/agents-from-scratch`](https://github.com/langchain-ai/agents-from-scratch)**
+
+LangChain 官方课程，通过构建一个 Email Agent，把几个生产级 Agent 能力串起来：
+
+```text
+Agent Basics
+      ↓
+Agent Evaluation
+      ↓
+Human-in-the-Loop
+      ↓
+Memory
+      ↓
+完整 Email Agent
+      ↓
+Deploy
+```
+
+这里最值得关注的是：
+
+```text
+Agent
++ Eval
++ HITL
++ Memory
++ Deployment
+```
+
+### 学习定位
+
+**第一个完整 Agent 项目。**
+
+重点观察一个 Agent 从 Demo 变成完整应用时，需要增加哪些基础设施。
+
+---
+
+## 6. LangChain Deep Agents
+
+**仓库：[`langchain-ai/deepagents`](https://github.com/langchain-ai/deepagents)**
+
+Deep Agents 是 LangChain 生态中值得重点研究的一套 Agent Harness。
+
+核心 API：
+
+```python
+create_deep_agent()
+```
+
+整个 Harness 围绕这些能力组织：
+
+```text
+Planning
+Filesystem
+Subagents
+Skills
+Memory
+Context Management
+Backend
+```
+
+Deep Agents 底层建立在 LangChain Agent 与 LangGraph Runtime 上。
+
+### 为什么值得读源码
+
+这里开始可以观察真实 Agent Harness 如何处理：
+
+```text
+Agent Loop
+Middleware
+Context
+Filesystem
+Memory
+Skills
+Subagent
+Sandbox
+Evaluation
+```
+
+### 学习定位
+
+**从课程进入源码阅读的桥梁。**
+
+---
+
+## 7. Deep Agents JS
+
+**仓库：[`langchain-ai/deepagentsjs`](https://github.com/langchain-ai/deepagentsjs)**
+
+TypeScript 版本对前端 / Node.js 开发者尤其值得关注。
+
+```ts
+import { createDeepAgent } from "deepagents";
+
+const agent = createDeepAgent();
+```
+
+核心能力大致包括：
+
+```text
+Planning
+├─ write_todos
+
+Filesystem
+├─ read_file
+├─ write_file
+├─ edit_file
+├─ ls
+├─ glob
+└─ grep
+
+Delegation
+└─ task
+
+Context Management
+└─ Filesystem-based workflow
+```
+
+### 学习定位
+
+**重点源码项目。**
+
+Python 版本负责理解 Deep Agents 整体设计，JS 版本更适合进入源码、调试和二次开发。
+
+---
+
+## 8. Learn AI Agents From Scratch
+
+**仓库：[`Haozhe-Xing/agent_learning`](https://github.com/Haozhe-Xing/agent_learning)**
+
+另一套完整度很高的中文 Agent 开源教材。
+
+覆盖范围：
+
+```text
+LLM Fundamentals
+↓
+Tools
+↓
+Memory
+↓
+Planning
+↓
+RAG
+↓
+Context
+↓
+Harness
+↓
+Skills
+↓
+Agentic RL
+↓
+Multi-Agent
+↓
+Evaluation
+↓
+Security
+↓
+Deployment
+```
+
+### 学习定位
+
+**工具书 / 补充教材。**
+
+遇到某个概念时，可以回来查对应章节，再继续追论文、源码和工程实现。
+
+---
+
+## 9. Complete Agentic AI Engineering Course
+
+**仓库：[`ed-donner/agents`](https://github.com/ed-donner/agents)**
+
+偏工程实战的一套 Agentic AI Engineering 课程。
+
+会接触多个主流 Agent 技术栈：
+
+```text
+OpenAI Agents SDK
+CrewAI
+LangGraph
+Google ADK
+Pydantic AI
+MCP
+```
+
+### 学习定位
+
+**工程练习项目。**
+
+基础原理和 Harness 学到一定程度后，再用这套课程快速横向接触不同 Agent Framework。
+
+---
+
+## 10. Agentic AI System Course
+
+**仓库：[`bryanyzhu/agentic-ai-system-course`](https://github.com/bryanyzhu/agentic-ai-system-course)**
+
+这套课程很接近 Agent Engineer 的知识地图，尤其值得关注 Harness、MCP、Observability、Cost 和 Production。
+
+```text
+One Tool Call
+↓
+Agent Loop
+↓
+Tools
+↓
+Prompt / Context / Cache
+↓
+Short-term / Long-term Memory
+↓
+Planning
+↓
+Multi-Agent
+↓
+Agent Harness
+↓
+HITL
+↓
+MCP / IPC / Connectors
+↓
+Skills / Subagents
+↓
+Backend Infrastructure
+↓
+Observability
+↓
+Cost / Latency / Model Strategy
+↓
+Safety / Ops
+```
+
+### 学习定位
+
+**Agent Engineering 系统课程。**
+
+适合完成基础阶段后，用来补工程化能力。
+
+---
+
+## 11. Multi-Agent Course
+
+**仓库：[`hamzafarooq/multi-agent-course`](https://github.com/hamzafarooq/multi-agent-course)**
+
+偏现代 Agent 架构与多 Agent 协作：
+
+```text
+Agent Loop / ReAct / Harness
+        ↓
+Skills / Subagents
+        ↓
+Agentic RAG / Knowledge Graph
+        ↓
+Evaluation / Guardrails
+        ↓
+MCP / A2A / ADK
+        ↓
+Voice Agent
+```
+
+### 学习定位
+
+**Multi-Agent / MCP / A2A 扩展资料。**
+
+---
+
+## 12. Towards AI Agentic AI Engineering Course
+
+**仓库：[`towardsai/agentic-ai-engineering-course`](https://github.com/towardsai/agentic-ai-engineering-course)**
+
+偏 production-grade Agent：
+
+```text
+Agent Architecture
+LangGraph
+RAG
+LLMOps
+Evaluation
+Deployment
+```
+
+### 学习定位
+
+**Production Agent 补充课程。**
+
+---
+
+## 13. Agent Evaluation
+
+**仓库：[`ksm26/Evaluating-AI-Agents`](https://github.com/ksm26/Evaluating-AI-Agents)**
+
+Evaluation 是 Agent 工程中非常容易被忽略的一层。
+
+重点内容：
+
+```text
+Tracing
+↓
+Observability
+↓
+Dataset
+↓
+Evaluator
+↓
+LLM-as-a-Judge
+↓
+Component Evaluation
+↓
+Experiment
+↓
+Production Monitoring
+```
+
+### 学习定位
+
+**Agent Evaluation 专项。**
+
+能够独立写出一个完整 Agent 后，就应该开始补这一层。
+
+---
+
+## 14. AWS Strands Agents Course
+
+**仓库：[`aws-samples/sample-getting-started-with-strands-agents-course`](https://github.com/aws-samples/sample-getting-started-with-strands-agents-course)**
+
+课程覆盖 Agent 基础、MCP、Multi-Agent 和生产部署：
+
+```text
+Strands Agent 基础
+↓
+Advanced Agent + MCP
+↓
+Multi-Agent
+↓
+Production Deployment / AgentCore
+```
+
+还会涉及 A2A、Memory、Observability、LangFuse 和 RAGAS。
+
+### 学习定位
+
+**云端 Agent / Production 扩展资料。**
+
+---
+
+# 学习资料分层
+
+以后发现新的 Agent 项目，统一放进下面几个分类。
+
+## 1. 原理 / 教材
+
+重点解决：
+
+```text
+Agent 为什么这样设计？
+```
+
+资料：
+
+- [`bojieli/ai-agent-book`](https://github.com/bojieli/ai-agent-book)
+- [`Haozhe-Xing/agent_learning`](https://github.com/Haozhe-Xing/agent_learning)
+
+## 2. Agent 实战课程
+
+重点解决：
+
+```text
+如何真正构建一个 Agent？
+```
+
+资料：
+
+- [`datawhalechina/deepagents-in-action`](https://github.com/datawhalechina/deepagents-in-action)
+- [`huggingface/agents-course`](https://github.com/huggingface/agents-course)
+- [`microsoft/ai-agents-for-beginners`](https://github.com/microsoft/ai-agents-for-beginners)
+- [`langchain-ai/agents-from-scratch`](https://github.com/langchain-ai/agents-from-scratch)
+- [`ed-donner/agents`](https://github.com/ed-donner/agents)
+
+## 3. Agent Harness
+
+重点解决：
+
+```text
+复杂 Agent 如何长期运行？
+```
+
+资料：
+
+- [`langchain-ai/deepagents`](https://github.com/langchain-ai/deepagents)
+- [`langchain-ai/deepagentsjs`](https://github.com/langchain-ai/deepagentsjs)
+
+重点概念：
+
+```text
+Context Engineering
+Filesystem
+Planning
+Middleware
+Skills
+Memory
+Subagents
+Sandbox
+Permissions
+HITL
+```
+
+## 4. Agent Engineering / Production
+
+重点解决：
+
+```text
+Agent 如何从 Demo 走向可观测、可评估、可部署的生产系统？
+```
+
+资料：
+
+- [`bryanyzhu/agentic-ai-system-course`](https://github.com/bryanyzhu/agentic-ai-system-course)
+- [`towardsai/agentic-ai-engineering-course`](https://github.com/towardsai/agentic-ai-engineering-course)
+- [`ksm26/Evaluating-AI-Agents`](https://github.com/ksm26/Evaluating-AI-Agents)
+- [`aws-samples/sample-getting-started-with-strands-agents-course`](https://github.com/aws-samples/sample-getting-started-with-strands-agents-course)
+
+---
+
+# 当前学习计划
+
+现阶段不同时铺开所有课程，主线按照下面顺序推进：
+
+```text
+① AI Agents in Depth
+        ↓
+建立 Agent 整体心智模型
+
+② Deep Agents 实战
+        ↓
+理解 Context Engineering 和 Agent Harness
+
+③ Agents From Scratch
+        ↓
+做一个完整 Agent 应用
+
+④ Deep Agents JS
+        ↓
+开始阅读真实 Harness 源码
+
+⑤ Deep Agents / Coding Agent
+        ↓
+研究更复杂的 Agent Architecture
+```
+
+辅助资料：
+
+```text
+Hugging Face Agents Course
+Microsoft AI Agents for Beginners
+agent_learning
+ed-donner/agents
+Agentic AI System Course
+```
+
+用来查缺补漏。
+
+---
+
+# 学习时重点关注的问题
+
+以后学习每一套 Agent 课程，都用同一组问题观察。
+
+## Agent Loop
+
+```text
+模型什么时候调用工具？
+什么时候结束？
+错误之后如何继续？
+如何避免无限循环？
+```
+
+## Context
+
+```text
+哪些内容进入 Context？
+Context 太长怎么办？
+历史消息如何压缩？
+工具结果放在哪里？
+```
+
+## Tool
+
+```text
+Tool 如何描述？
+Tool 如何发现？
+Tool 如何鉴权？
+Tool 调用失败怎么办？
+```
+
+## Memory
+
+```text
+短期 Memory 放哪里？
+长期 Memory 放哪里？
+什么时候写？
+什么时候读？
+```
+
+## Planning
+
+```text
+计划由谁生成？
+Todo 如何维护？
+计划变化之后如何更新？
+```
+
+## Subagent
+
+```text
+什么时候创建 Subagent？
+Context 是否隔离？
+任务结果如何返回？
+如何并行？
+```
+
+## Harness
+
+```text
+Harness 为 Agent 提供哪些基础设施？
+哪些能力属于 Runtime？
+哪些属于 Framework？
+哪些属于 Harness？
+```
+
+## Evaluation
+
+```text
+怎么判断 Agent 做得好？
+怎么复现失败？
+怎么做 Regression Test？
+怎么观察 Trace？
+```
+
+这组问题比单纯记 Framework API 更有价值。
+
+---
+
+# 当前重点技术栈
+
+```text
+LLM
+│
+├─ Tool Calling
+├─ Structured Output
+│
+Agent Loop
+│
+├─ ReAct
+├─ Planning
+│
+Context Engineering
+│
+├─ Memory
+├─ RAG
+├─ Filesystem
+├─ Compaction
+│
+Agent Harness
+│
+├─ Middleware
+├─ Skills
+├─ MCP
+├─ Subagents
+├─ Sandbox
+├─ HITL
+│
+Engineering
+│
+├─ Evaluation
+├─ Observability
+├─ Security
+├─ Persistence
+└─ Deployment
+```
+
+长期目标是看到一个新的 Agent Framework 时，可以快速判断：
+
+```text
+它解决了哪一层问题？
+核心抽象是什么？
+Context 怎么组织？
+Agent Loop 在哪里？
+工具系统在哪里？
+状态放在哪里？
+如何扩展？
+如何评测？
+```
+
+做到这一点之后，再学习新的 Agent Framework，学习成本会低很多。
+
+---
+
+# 学习记录模板
+
+以后每学完一个章节，在 Blog 中继续追加独立学习笔记，并从这篇总索引链接过去。
+
+```md
+## YYYY-MM-DD
+
+学习内容：
+
+- 课程：
+- 章节：
+- 源码：
+
+今天理解：
+
+1.
+2.
+3.
+
+关键概念：
+
+- Agent Loop：
+- Context：
+- Tool：
+- Memory：
+- Harness：
+
+代码 / Demo：
+
+-
+
+还有疑问：
+
+1.
+2.
+
+下一步：
+
+-
+```
+
+这篇文章作为 AI Agent 学习总索引长期维护；具体课程学习笔记单独拆文章，再从这里链接过去。
