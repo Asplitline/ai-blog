@@ -1,0 +1,561 @@
+---
+title: "Agent Engineering 学习周报 #2：从会执行到可验证、可追溯、可复现"
+description: "整理 2026-09-14 ～ 2026-09-20 GitHub Trending 与 Agent Engineering 项目的有效变化，重点研究 Evaluation、Provenance、Context/Memory、Research Control Plane 和确定性工程。"
+date: "2026-09-25"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Evaluation
+  - Provenance
+  - Context Engineering
+  - Control Plane
+  - Weekly Review
+draft: false
+---
+
+> 周报范围：2026-09-14 ～ 2026-09-20。
+>
+> 本期继续把 GitHub Trending 当作 Agent Engineering 学习雷达，关注项目解决的工程问题、周内变化、与上一期知识图的关系，以及下一步可落地的学习任务。
+
+## 本周结论
+
+上一期形成的主线是：
+
+```text
+Skills → Harness → Context / Memory → Runtime → Infrastructure
+```
+
+本周最重要的变化，是这条链路开始补上工程闭环：
+
+```text
+Skill / Agent
+      ↓
+Structured Workflow
+      ↓
+Deterministic State
+      ↓
+Independent Verification
+      ↓
+Git / Experiment Lineage
+      ↓
+Reproducible Artifact
+```
+
+值得重点研究的四个项目：
+
+| 主题 | 项目 | 本周学习价值 |
+| --- | --- | --- |
+| Context / Memory / Provenance | [pacifio/atlas](https://github.com/pacifio/atlas) | 把 Agent Session、工具调用、文件修改与 Git commit 绑定 |
+| Skills / Evaluation | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) | 把 Skill 扩展为带 Coverage、Schema 和独立验证的审计管线 |
+| Coding Agent / Developer Tooling | [alibaba/open-code-review](https://github.com/alibaba/open-code-review) | 用确定性程序约束范围、位置与规则，让 Agent 专注动态判断 |
+| Runtime / Control Plane | [alphaXiv/OpenResearch](https://github.com/alphaXiv/OpenResearch) | 用 worktree、实验树和不可变归档组织并行 Research Agent |
+
+这四个项目指向同一个趋势：**Agent 执行过程正在成为可管理的软件工程资产。**
+
+---
+
+## 一、Skills + Evaluation：Skill 正在变成可验证 Pipeline
+
+### [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill)
+
+这个项目是一套面向 Coding Agent 的安全审计 Skill。它的价值集中在完整执行协议，而非安全 Prompt 数量。
+
+仓库把审计拆成六个阶段：
+
+```text
+1. Reconnaissance
+   建立 architecture.md 与 coverage-ledger.json
+
+2. Coverage-led Hunting
+   按覆盖单元分派隔离的 Hunter Agent
+
+3. Candidate Validation
+   由新的 Verifier 尝试推翻候选漏洞
+
+4. Structured Output
+   输出 findings.json，并通过 JSON Schema 校验
+
+5. Independent Record Verification
+   再由独立 Agent 验证最终事实记录
+
+6. Reporting
+   从已验证记录生成报告
+```
+
+它解决了通用 Skill 常见的三个薄弱点：
+
+| 薄弱点 | 工程措施 |
+| --- | --- |
+| Agent 容易遗漏检查范围 | `coverage-ledger.json` 显式记录覆盖单元与状态 |
+| Agent 容易确认自己的猜测 | Hunter 与 Verifier 使用独立上下文和不同角色 |
+| 自然语言结果难以被程序消费 | `findings.json` + `report-schema.json` 形成机器可读契约 |
+
+其中最值得学习的是 Coverage Ledger。它把“我大概检查过了”变成一组可枚举状态：
+
+```text
+planned
+  ↓
+assigned
+  ↓
+covered / candidate / blocked / deferred
+```
+
+多次审计还能复用旧 Ledger，同时重新检查变化过的源码。这样 Memory、Evaluation 和 Incremental Execution 被连接到同一份结构化状态中。
+
+### 本周发生了什么
+
+仓库在 **2026-09-14** 的提交中明确区分了 `guidance` 与 `full audit` 两种模式：普通安全问题按需读取相关流程；完整审计才启动六阶段管线并创建产物。这项变化体现了一个重要原则：**Skill 既要描述能力，也要明确触发边界、授权范围和产物约束。**
+
+### 和上一期项目的关系
+
+上一期的 [obra/superpowers](https://github.com/obra/superpowers) 重点是把 Brainstorm、Plan、TDD、Debug、Review、Verification 编成可复用工作流。Cloudflare 的项目继续补上三层：
+
+```text
+Superpowers
+  → 过程约束
+
+Security Audit Skill
+  → 结构化共享状态
+  → 多 Agent 角色隔离
+  → 可机器验证的最终产物
+```
+
+它也可以看作 [affaan-m/ECC](https://github.com/affaan-m/ECC) 中 Verification 思想的专项实现：范围更窄，状态定义更清楚，验证链更容易读懂。
+
+### 值得学习什么
+
+按以下顺序阅读：
+
+1. [`skills/security-audit/SKILL.md`](https://github.com/cloudflare/security-audit-skill/blob/main/skills/security-audit/SKILL.md)：模式、权限边界、角色和完整工作流。
+2. [`RECONNAISSANCE.md`](https://github.com/cloudflare/security-audit-skill/blob/main/skills/security-audit/RECONNAISSANCE.md)：Coverage Unit 如何生成。
+3. [`report-schema.json`](https://github.com/cloudflare/security-audit-skill/blob/main/skills/security-audit/report-schema.json)：如何约束最终输出。
+4. 两个 Validator：观察自然语言流程如何接入确定性程序检查。
+
+---
+
+## 二、Coding Agents + Developer Tooling：确定性 Pipeline 与 Agent 开始分工
+
+### [alibaba/open-code-review](https://github.com/alibaba/open-code-review)
+
+Open Code Review 是面向 Git diff 和完整文件扫描的 AI Code Review CLI。它把 Review 工作拆成两类：
+
+```text
+确定性程序负责
+├── 选择需要审查的文件
+├── 过滤无关与敏感路径
+├── 文件分组
+├── 规则匹配
+├── 行号定位
+└── 结果反思与整理
+
+Agent 负责
+├── 动态判断缺陷
+├── 按需检索上下文
+├── 跨文件理解
+└── 形成审查意见
+```
+
+这个分工很重要。代码差异范围、路径安全、行号定位等任务具有明确算法和强约束，适合由程序保证；缺陷识别、意图判断和跨文件推理适合交给模型。
+
+仓库给出的 Benchmark 也采用工程指标观察 Review 质量：Precision、Recall、F1、时间和 Token。对实际团队而言，低 Precision 会快速消耗开发者对 AI Review 的信任，因此项目明确选择更高 Precision 的路线。
+
+### 本周发生了什么
+
+2026-09-14 ～ 09-20 的提交集中体现了生产级工具需要补齐的边界：
+
+- 加入敏感路径过滤，保护 `.env` 等文件；
+- 兼容 OpenCode 2.x，并增加 Kimi Code 插件；
+- 修复 `code_search` / `code_comment` 的路径穿越绕过；
+- 在运行中的 Review Group 内强制执行 Token Budget；
+- 修复超大未跟踪文件、二进制文件、CRLF diff 等确定性输入问题；
+- 改进 Session Viewer，并支持导出单文件 HTML。
+
+这些变化揭示了 Coding Agent 产品走向生产环境时的真实工作量：模型能力只是其中一层，输入规范化、预算、路径安全、可恢复 Session 和结果审阅界面共同决定可用性。
+
+### 和上一期项目的关系
+
+上一期的 OpenCode 是通用 Coding Agent Runtime，Open Code Review 是领域化 Harness：
+
+```text
+OpenCode
+  → 通用 Agent Loop / Tool Calling / Permission
+
+Open Code Review
+  → Code Review 专用范围计算
+  → 专用工具集与规则匹配
+  → 精确位置映射
+  → Review Evaluation
+```
+
+它与 Cloudflare Security Audit Skill 也形成两种实现路径：
+
+| 路径 | 主要控制方式 | 适用场景 |
+| --- | --- | --- |
+| Security Audit Skill | Skill 协议 + Ledger + Schema + Verifier | 开放式、高不确定性的深度审计 |
+| Open Code Review | 确定性 Pipeline + 专用 Agent | 高频、范围清晰、需要稳定吞吐的 PR Review |
+
+对自己的 Agent 平台设计，优先采用第二种思路处理可确定的业务流程，再把开放判断留给 Agent。
+
+### 值得学习什么
+
+重点回答四个问题：
+
+1. 文件选择与分组如何防止大变更下的遗漏？
+2. Rule Matching 如何减少无关 Context？
+3. Review Comment 如何重新映射到准确行号？
+4. Session、Token Budget、Viewer 如何组成可恢复的人机审阅闭环？
+
+---
+
+## 三、Context / Memory / Provenance：从 Recall 进入“谁产生了这次修改”
+
+### [pacifio/atlas](https://github.com/pacifio/atlas)
+
+Atlas 把自己定位为 Coding Agent 的 Source Control。核心对象是 Checkpoint：
+
+```text
+Agent Session
+├── Prompt
+├── Tool Calls
+├── Reasoning / Messages
+├── File Changes
+└── Agent Identity
+        ↓
+    Checkpoint
+        ↓
+     Git Commit
+```
+
+Git commit 保存代码结果，Checkpoint 保存产生结果的 Agent 执行上下文。它进一步处理 amend 和 rebase：通过 patch-id reconciliation 重新关联历史；遇到 squash 等真正歧义的情况时保留 orphan 状态，避免猜测性绑定。
+
+Atlas 同时支持 Claude Code、Codex、原生 Agent 与 ACP Agent。不同 Agent 通过共享 Memory 获得：
+
+- Active Plan
+- Decisions
+- File Changes
+- Failures
+- Architecture Notes
+- 最近 Session 的 Handoff Pack
+
+这里的关键设计是 Agent-neutral：上层依据 Capability 判断 Agent 能力，避免按 Claude、Codex 等具体身份编写分支。
+
+### 本周发生了什么
+
+Atlas 在 2026-09-19 集中合入了一组 Shared Memory 变化，形成较完整的数据流：
+
+```text
+Session Capture
+      ↓
+SQLite Record Store
+      ↓
+Memory Tool Server
+      ↓
+Ranked Session-start Briefing
+      ↓
+Recent-session Handoff
+      ↓
+Shared UI: Provenance + Confidence
+```
+
+同一批提交还加入了 Claude Auto-memory 的授权导入预览，并把长期共享内容收敛为 Facts，删除被替代的 Graph、Consolidation 与 Dream 路径。这体现出 Memory 设计正在从“功能越多越好”转向更清楚的数据契约：事实来自哪里、可信度如何、何时注入、用户怎样编辑和遗忘。
+
+### 和上一期项目的关系
+
+上一期的 TeamAI 关注团队级 Skills、Rules、Learnings 和 Knowledge 分发；Hermes 关注 Persistent Memory 与长期运行；Atlas 补上执行历史与 Git 的关系：
+
+```text
+TeamAI
+  → 团队经验如何分发
+
+Hermes
+  → Agent 如何长期保存用户与任务信息
+
+Atlas
+  → 哪个 Session 产生哪个 Commit
+  → 为什么产生这组修改
+  → 如何把旧 Session 交给另一个 Agent
+```
+
+这三类 Memory 应该分开建模：
+
+| Memory 类型 | 典型内容 | 生命周期 |
+| --- | --- | --- |
+| Team Knowledge | 团队规则、最佳实践、Learning | 长期、可评审 |
+| User / Project Memory | 偏好、架构事实、项目约定 | 长期、按需召回 |
+| Execution Provenance | Prompt、Tool、Patch、Commit、失败路径 | 与 Session / Git 历史绑定 |
+
+### 值得学习什么
+
+优先阅读：
+
+1. [README 的 Checkpoints 与 Shared Memory](https://github.com/pacifio/atlas#checkpoints)；
+2. [`ARCHITECTURE.md`](https://github.com/pacifio/atlas/blob/main/ARCHITECTURE.md) 中 Agent Runtime、Outbound Pipeline 与 `atlas-checkpoint`；
+3. 本周 Shared Memory 的连续提交，按 `record store → tool server → briefing → handoff → provenance UI` 顺序还原数据流。
+
+重点画出自己的数据模型：
+
+```text
+Session 1 ── N Event
+Session N ── N FileChange
+Session N ── N Checkpoint
+Checkpoint N ── 1 Commit
+Fact N ── 1 Source Session
+Fact ── confidence / scope / updated_at / forgotten_at
+```
+
+---
+
+## 四、Runtime + Control Plane：Coding Agent 正在成为 Research Worker
+
+### [alphaXiv/OpenResearch](https://github.com/alphaXiv/OpenResearch)
+
+OpenResearch 把 Claude Code、Codex、OpenCode、Cursor 等 Coding Agent 放进研究工作流：文献检索、假设生成、修改代码、运行实验、读取证据、决定下一轮方向。
+
+它的基本执行单元是：
+
+```text
+Research Direction
+       ↓
+Isolated Git Worktree
+       ↓
+Agent Session
+       ↓
+Experiment Run
+       ↓
+Logs / Diff / Metrics / Artifacts
+       ↓
+Immutable Archive
+       ↓
+Experiment Tree / Lineage
+```
+
+多个 Agent 可以并行探索不同方向，每个方向拥有隔离 worktree；实验树保留父子关系，每次运行绑定确定的源码快照和产物。这样研究 Agent 的输出具备可复现基础。
+
+### 本周发生了什么
+
+OpenResearch 在这一周从 v0.2.2 推进到 v0.2.6，主要变化包括：
+
+- 把 Run Lifecycle 明确实现为状态机；
+- 增加 Workspace Terminal 与内嵌 Harness Setup Terminal；
+- 改善 Windows 下 Codex、Cursor、OpenCode 的自动安装与恢复；
+- 兼容 OpenCode 2.x；
+- 增加 Google Antigravity Harness；
+- 修复任务取消与 Harness Setup 恢复。
+
+这些变化集中在 Control Plane 的可靠性：Agent 是否能启动、状态是否可恢复、运行是否能取消、不同 Harness 是否能共用同一实验系统。
+
+### 和上一期项目的关系
+
+它把上一期的 Harness 与 Runtime 推进到一个具体领域：
+
+```text
+TeamAI / ECC
+  → 组织 Agent 的开发流程
+
+OpenCode / PI-Desktop
+  → 运行 Agent 与呈现 Session
+
+OpenResearch
+  → 把多个 Coding Agent 当作 Research Worker
+  → 用 Worktree、Run State、Experiment Tree 管理它们
+```
+
+它也与 Atlas 形成相邻关系：
+
+| 项目 | 主要 Lineage |
+| --- | --- |
+| Atlas | Session → File Change → Checkpoint → Commit |
+| OpenResearch | Hypothesis → Worktree → Run → Evidence → Experiment Branch |
+
+一个偏软件修改溯源，一个偏实验演化溯源。共同基础是 Git-native、不可变快照和结构化执行状态。
+
+### 值得学习什么
+
+优先研究三个对象：
+
+1. `RunStatus` 状态机：允许哪些迁移，失败与取消如何收敛；
+2. Experiment Tree：父实验、变体、代码快照和结果如何关联；
+3. Harness Adapter：Codex、OpenCode、Cursor 的启动、认证与消息传递如何归一化。
+
+---
+
+## 五、本周趋势变化
+
+把四个项目放到同一张图里，可以看到关注点从“Agent 会不会做”移动到“执行是否可信”：
+
+```text
+前一阶段
+Model → Agent Loop → Tool → Result
+
+本周增强
+                 ┌─ Coverage Ledger
+                 ├─ Run State Machine
+Agent Execution ─┼─ Independent Verifier
+                 ├─ Session / Commit Provenance
+                 └─ Immutable Artifact
+```
+
+### 1. Evaluation 开始进入执行管线
+
+Eval 正从任务结束后的打分，进入任务执行中的状态控制。Cloudflare 用 Coverage 与 Verifier 控制审计质量；Open Code Review 用文件覆盖、行号定位和 Benchmark 控制 Review 质量。
+
+### 2. Memory 开始携带来源和置信度
+
+Atlas 的 Shared Memory UI 暴露 Provenance 与 Confidence，表明长期记忆需要来源、作用域、更新时间、编辑与遗忘机制。单纯保存摘要已经无法覆盖团队和多 Agent 场景。
+
+### 3. Git 正在成为 Agent 的通用状态骨架
+
+Atlas 用 Git commit 绑定 Session，OpenResearch 用 worktree 和 commit 保存实验分支。Git 同时提供隔离、快照、Diff、Lineage 和协作接口，适合承担 Agent Execution 的一部分持久化职责。
+
+### 4. 领域 Harness 比通用 Agent 更容易形成稳定产品
+
+Open Code Review 和 Security Audit Skill 都选择明确领域。领域边界让工具集、Schema、Eval、预算和失败状态更容易定义，也更容易建立可重复的质量标准。
+
+---
+
+## 六、各层学习地图更新
+
+```text
+Agent Engineering
+│
+├─ Skills
+│  ├─ Superpowers
+│  └─ Security Audit Skill
+│       └─ Workflow + Ledger + Schema + Verification
+│
+├─ Harness / Coding Agents
+│  ├─ TeamAI / ECC
+│  ├─ OpenCode
+│  └─ Open Code Review
+│       └─ Deterministic Pipeline + Domain Agent
+│
+├─ Context / Memory
+│  ├─ Team Knowledge
+│  ├─ Persistent Memory
+│  └─ Atlas
+│       └─ Session + Fact + Checkpoint + Commit
+│
+├─ Runtime / Control Plane
+│  ├─ PI-Desktop
+│  └─ OpenResearch
+│       └─ Worktree + Run State + Experiment Tree
+│
+├─ Evaluation / Verification
+│  ├─ Coverage Ledger
+│  ├─ Independent Verifier
+│  ├─ JSON Schema
+│  └─ Precision / Recall / F1 / Token / Time
+│
+└─ Infrastructure
+   ├─ Local Inference: Magnitude / llmfit
+   └─ Model Gateway: OmniRoute
+```
+
+本周在 Local Inference 与 Model Gateway 上没有出现足以改变学习路线的新材料。继续保留上一期的 Magnitude、llmfit、OmniRoute 作为基础设施参考；当前学习投入优先转向 Evaluation、Provenance 和 Control Plane。
+
+---
+
+## 七、项目优先级
+
+### 第一层：本周真正读设计与源码
+
+| 项目 | 优先阅读 | 目标 |
+| --- | --- | --- |
+| [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) | `SKILL.md`、Ledger、Schema、Validators | 理解可验证 Skill |
+| [pacifio/atlas](https://github.com/pacifio/atlas) | Checkpoints、Shared Memory、Architecture | 理解 Provenance 与跨 Agent Handoff |
+| [alphaXiv/OpenResearch](https://github.com/alphaXiv/OpenResearch) | Run State、Experiment Tree、Harness Adapter | 理解 Agent Control Plane |
+
+### 第二层：重点理解产品化架构
+
+| 项目 | 重点 |
+| --- | --- |
+| [alibaba/open-code-review](https://github.com/alibaba/open-code-review) | 确定性 Pipeline 与领域 Agent 的分工 |
+| [anomalyco/opencode](https://github.com/anomalyco/opencode) | 作为通用 Runtime 对照组 |
+| [Tencent/teamai-cli](https://github.com/Tencent/teamai-cli) | 作为 Team Knowledge 对照组 |
+
+### 当前减少投入
+
+继续收集通用 Skills 列表和同质化 Coding Agent UI 的边际收益较低。下一阶段应围绕一个完整数据流做源码跟读和小型实现。
+
+---
+
+## 八、下周实践计划：2026-09-28 ～ 2026-10-04
+
+目标：完成一个最小 **Verifiable Agent Run** 原型，把本周四个项目的核心思想落到同一条数据流。
+
+### 周一：拆 Security Audit Skill
+
+- 阅读 `SKILL.md`、`RECONNAISSANCE.md`、`report-schema.json`；
+- 画出 Parent、Hunter、Verifier、Ledger、Finding 的关系；
+- 输出一页笔记：哪些步骤必须由程序校验，哪些步骤允许模型判断。
+
+### 周二：拆 Open Code Review
+
+- 跟踪 `Git Diff → File Selection → Bundle → Agent → Comment Position`；
+- 记录五个确定性边界：路径、文件集合、规则、预算、位置；
+- 为自己的前端项目设计一个 `Frontend Review Bundle`。
+
+### 周三：拆 Atlas Provenance
+
+- 阅读 Checkpoint 与 Shared Memory；
+- 画出 `Session → Event → FileChange → Checkpoint → Commit` ER 图；
+- 为 Fact 增加 `source`、`confidence`、`scope`、`updated_at` 字段。
+
+### 周四：拆 OpenResearch Control Plane
+
+- 阅读 Run Lifecycle 与 Experiment Tree；
+- 写出状态机：`queued → running → succeeded / failed / cancelled`；
+- 明确重试、恢复和取消各自需要保存的状态。
+
+### 周五：实现最小原型
+
+用 TypeScript 完成一个 CLI 或小服务：
+
+```text
+输入 Task
+  ↓
+创建 run.json
+  ↓
+执行一个 Tool / Mock Agent
+  ↓
+记录 events.jsonl
+  ↓
+输出 result.json
+  ↓
+用 JSON Schema 校验
+  ↓
+绑定当前 Git commit
+```
+
+最低数据结构：
+
+```ts
+type AgentRun = {
+  id: string;
+  task: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  agent: string;
+  startedAt?: string;
+  endedAt?: string;
+  gitCommit?: string;
+  artifacts: string[];
+};
+```
+
+### 周六：增加验证角色
+
+- 让第二个 Agent 只读取 Task、Diff 和 Result；
+- 输出 `verified`、`rejected`、`needs_validation`；
+- 验证结果保存为独立 Artifact，保留 verifier 身份与证据引用。
+
+### 周日：复盘与沉淀
+
+- 写一张完整架构图；
+- 记录三类失败：执行失败、验证失败、证据不足；
+- 形成一篇短文：《Agent Run 为什么需要 Ledger、Provenance 和 Verifier》；
+- 决定下一步深入 Browser Runtime、Sandbox 或 Tool Gateway 中的一条。
+
+---
+
+本周最值得建立的能力，是把一次 Agent 执行完整记录下来，并让另一个执行者能够复查它。学习重点应从继续扩展项目收藏，转向亲手实现 `Run State + Artifact + Verification + Git Provenance` 这条最小闭环。
