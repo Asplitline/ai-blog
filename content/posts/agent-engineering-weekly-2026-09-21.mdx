@@ -1,0 +1,580 @@
+---
+title: "Agent Engineering 学习周报 #3：从执行环境到组织控制平面"
+description: "整理 2026-09-21 ～ 2026-09-27 GitHub Trending 与 Agent Engineering 的有效变化，重点研究 Agent Runtime、跨 Agent Memory、Tool Gateway、Workload Orchestration 与组织治理。"
+date: "2026-10-02"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Runtime
+  - Context Engineering
+  - Control Plane
+  - Tool Gateway
+  - Weekly Review
+draft: false
+---
+
+> 周报范围：2026-09-21 ～ 2026-09-27。
+>
+> 本期不复述一周榜单，而是回答三个问题：Agent 的执行边界扩展到了哪里？Memory 为什么开始分化？多个 Agent 进入生产环境后，需要哪些控制平面？
+
+## 本周结论
+
+上一期补齐的是一次 Agent 执行的可信闭环：
+
+```text
+Structured Workflow
+  → Run State
+  → Verification
+  → Provenance
+  → Reproducible Artifact
+```
+
+本周的变化，是这个闭环开始向系统级架构扩展：
+
+```text
+Agent Application
+  ↓
+Shared Actions / Domain Skills
+  ↓
+Context / Memory / Learning
+  ↓
+Tool Gateway
+  ↓
+Browser / Mobile / Workspace Runtime
+  ↓
+Workload Control Plane
+  ↓
+Organization Governance
+  ↓
+Identity / Event / Audit Substrate
+```
+
+最值得保留的判断有四个：
+
+1. **执行面正在从 Shell 扩展到 Browser、Mobile、Office 和隔离 Workspace。** Runtime 不再只是启动一个 Agent Loop，而是要处理登录态、设备、权限、人工接管和失败恢复。
+2. **Memory 已经分成“交接”和“学习”两类。** `ai-memory` 关注项目连续性与跨 Agent Handoff，Hindsight 关注从多次经历中形成可更新的认知模型。
+3. **Control Plane 正在分层。** Google AX 管 Task / Workspace / Model，Paperclip 管 Goal / Organization / Budget / Approval，Buzz 管 Identity / Collaboration / Evidence。
+4. **Tool Gateway 成为独立基础设施。** 模型有 Model Gateway，Agent 工具也开始需要发现、凭证、权限、成本和审计的统一入口。
+
+本周不是出现了一个“更强的 Coding Agent”，而是 Agent Engineering 的运行、治理和协作边界开始变清楚。
+
+---
+
+## 一、Skills 与 Agent-Native Application：能力不再只为 Agent 实现
+
+### [anthropics/financial-services](https://github.com/anthropics/financial-services)
+
+这是本周最值得结合证券业务阅读的领域 Agent 样例。仓库覆盖 Equity Research、Earnings Review、DCF、Comps、Model Update、Thesis Tracking、KYC 等场景，并提供 Connectors、Skills、子 Agent 和 Managed Agent 部署样例。
+
+其中 `earnings-reviewer` 的工作流很典型：
+
+```text
+Earnings Call / Filing
+        ↓
+Transcript Reader
+        ↓
+Model Updater
+        ↓
+Note Writer
+        ↓
+Analyst Review
+```
+
+它值得学习的不是金融 Prompt，而是领域 Agent 的四层结构：
+
+| 层 | 作用 |
+| --- | --- |
+| Domain Skill | 定义研究流程、术语与产物 |
+| Connector | 连接财报、行情、文档和研究平台 |
+| Specialist Agent | 把读取、计算、更新、写作拆成不同角色 |
+| Deployment Wrapper | 把交互式 Skill 部署为可长期运行的 Managed Agent |
+
+### 和上一期的关系
+
+[cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) 证明专业能力可以被写成带 Ledger、Schema 和 Verifier 的可验证流程；Financial Services 进一步展示同一套领域能力如何被封装为交互式 Skill 和托管 Agent。
+
+```text
+Security Audit Skill
+  → 专业流程如何被验证
+
+Financial Services
+  → 专业流程如何连接数据、拆分角色并部署
+```
+
+对证券 Agent 项目，优先研究 [`managed-agent-cookbooks`](https://github.com/anthropics/financial-services/tree/main/managed-agent-cookbooks) 里的 `market-researcher` 和 `earnings-reviewer`，重点不是照搬 Prompt，而是观察输入契约、子 Agent 边界、安全等级和 Handoff。
+
+### [BuilderIO/agent-native](https://github.com/BuilderIO/agent-native)
+
+Agent-Native 提出一个对前端和产品工程非常重要的设计：**UI 和 Agent 应该是同一业务能力的两个调用端。**
+
+一个 Action 只实现一次，同时暴露给：
+
+```text
+React UI
+Agent Tool
+HTTP
+MCP
+A2A
+CLI
+```
+
+UI 和 Agent 共用参数校验、权限与业务实现；Agent 做出的修改立即进入应用数据，用户在 UI 中做的选择也成为 Agent Context。Agent 不需要模拟点击业务 UI，而是直接调用共享 Action。
+
+这补上了上一期知识图里缺少的 Application Architecture：
+
+```text
+OpenCode / PI-Desktop
+  → Agent 如何运行
+
+Agent-Native
+  → 业务应用如何同时服务 UI 与 Agent
+```
+
+值得重点阅读 [Shared Actions](https://github.com/BuilderIO/agent-native) 的实现方式，并把自己的一个前端业务动作写成最小实验：按钮和 Agent Tool 调用同一个 TypeScript Action，共用 Zod Schema、Permission Check 和 Result Type。
+
+---
+
+## 二、Context / Memory：从保存历史分化为“交接”和“学习”
+
+### [akitaonrails/ai-memory](https://github.com/akitaonrails/ai-memory)
+
+`ai-memory` 面向 Coding Agent 的持续项目记忆，核心数据流是：
+
+```text
+Capture
+  ↓
+Consolidate
+  ↓
+Recall
+  ↓
+Handoff
+```
+
+它使用 Git-backed Markdown 作为可阅读、可编辑、可版本化的事实源；SQLite、FTS、Entity、Graph 和 Vector 只是派生检索层。生命周期 Hooks 自动捕获 Session 中的修改、错误、决策与未完成任务。
+
+最有增量的是 typed、claim-once Handoff：
+
+```text
+Claude Code Session
+  ↓ 写入 handoff
+Pending
+  ↓ 另一个 Agent 原子领取
+Claimed
+  ↓
+Codex / OpenCode / Teammate 继续执行
+```
+
+“领取一次”避免多个 Agent 同时把同一个交接当成自己的新任务。跨项目消息也被视为不可信输入，只是需要评估的请求，而不是可以直接执行的指令。
+
+### [vectorize-io/hindsight](https://github.com/vectorize-io/hindsight)
+
+Hindsight 解决的是另一类问题：Agent 不只要记得过去，还要从多次经历中形成可更新的理解。
+
+它的核心接口是：
+
+```text
+Retain → Recall → Reflect
+```
+
+Memory 被拆成：
+
+| 类型 | 含义 |
+| --- | --- |
+| World Facts | 关于外部世界的事实 |
+| Experiences | Agent 自己经历过的事件 |
+| Observations | 从多条证据中合并出的可更新判断 |
+| Mental Models | 对用户、项目或领域形成的长期理解 |
+
+其中 Observation 保留支持证据和 proof count；新信息不是静默覆盖旧结论，而是增强、削弱或扩展已有判断。Mental Model 则把长期问题的答案预先整理成可直接读取的知识页，避免每次 Session 都重新检索和推理。
+
+### 与 Atlas 的关系
+
+这三个项目不要混成同一种 Memory：
+
+| 项目 | 核心问题 | 主要数据对象 |
+| --- | --- | --- |
+| [pacifio/atlas](https://github.com/pacifio/atlas) | 哪个 Session 产生了哪个 Commit？ | Session、Checkpoint、Commit、Provenance |
+| [akitaonrails/ai-memory](https://github.com/akitaonrails/ai-memory) | 下一个 Agent 如何接着做？ | Page、Task、Handoff、Inbox |
+| [vectorize-io/hindsight](https://github.com/vectorize-io/hindsight) | 多次经历如何形成新的认知？ | Fact、Experience、Observation、Mental Model |
+
+这意味着未来的 Team Memory 可能至少有三张相互关联但独立治理的表：
+
+```text
+Execution History
+Project Handoff
+Learned Knowledge
+```
+
+当前最值得学习的是数据生命周期：谁可以写入、什么时候合并、如何引用来源、冲突怎样处理、过期内容如何遗忘，而不是继续比较向量数据库。
+
+---
+
+## 三、Runtime：Agent 开始获得真实 Browser、Mobile 与 Workspace
+
+### [Tencent/BrowserSkill](https://github.com/Tencent/BrowserSkill)
+
+BrowserSkill 让 Shell-capable Agent 通过统一 CLI 使用用户真实的 Chrome / Edge。它不是单纯的 Playwright MCP，而是一条完整的本地执行链：
+
+```text
+Agent / SKILL.md
+       ↓
+     bsk CLI
+       ↓ Local IPC
+     Daemon
+       ↓ WebSocket
+Browser Extension
+       ↓ CDP
+Dedicated Agent Window
+       ↕
+Human Takeover
+```
+
+它可以复用真实浏览器的登录态，但写操作默认限制在独立 Agent Window；用户标签页需要显式 Borrow。遇到登录、验证码或高风险确认时，可以让人接管，再把控制权交回 Agent。
+
+真正值得研究的不是 `click` 命令，而是 Session、Tab Ownership、Operation Queue、Unknown Effect 和 Human Takeover：浏览器操作发生超时后，系统不能假设“没有执行”，更不能盲目重试可能已经提交的表单。
+
+### [mobile-next/mobile-mcp](https://github.com/mobile-next/mobile-mcp)
+
+Mobile MCP 把同样的执行思想扩展到 iOS、Android、模拟器和真实设备。它优先读取原生 Accessibility Tree，只有结构信息不足时才回退到截图和坐标：
+
+```text
+Accessibility Snapshot
+  → 稳定元素与结构化属性
+  → 确定性操作
+
+Screenshot + Coordinate
+  → 视觉兜底
+```
+
+它覆盖应用安装、启动、手势、深链、录屏、设备日志和 Crash Report。相比纯视觉 Agent，这种 Accessibility-first 路线更便宜，也更适合自动化测试和可重复执行。
+
+### [coder/coder](https://github.com/coder/coder) 与 [TencentCloud/Octop](https://github.com/TencentCloud/Octop)
+
+Coder 代表 Agent Execution Environment：用 Terraform 定义 Workspace，运行在 Docker、Kubernetes 或云主机中，把身份、模型访问、审计和成本留在 Control Plane，Agent Workspace 不必直接持有模型密钥。
+
+Octop 则把 Runtime、Memory、Gateway、Browser、Skills、Cron、ACP、多用户和多 Agent 整合成 self-hosted 平台。它的价值更多在“观察一体化 Agent 平台需要哪些模块”，而不是新增一个完全不同的架构层。
+
+### 执行层的共同问题
+
+BrowserSkill、Mobile MCP 和 Coder 看似属于三个产品类别，其实共同回答：
+
+```text
+Agent 在哪里执行？
+能看到哪些资源？
+凭证放在哪里？
+什么操作需要授权？
+失败后能否确认副作用？
+人怎样接管并恢复？
+```
+
+上一期关注的是 `Run State + Artifact + Verification`；本周需要进一步加入 `Isolation + Ownership + Permission + Human Takeover`。
+
+[dream-num/univer](https://github.com/dream-num/univer) 也可以放在这一层作为 Office Runtime 参考：让 Sheets、Docs、Slides 和 PDF 获得 headless、结构化编辑与截图验证能力。它延续了“传统软件能力 Agent 化”的趋势，但优先级低于 BrowserSkill 和 Mobile MCP。
+
+---
+
+## 四、Tool Gateway：工具正在获得类似模型网关的治理层
+
+### [superdesigndev/treg](https://github.com/superdesigndev/treg)
+
+Treg 把自己定位成 Agent Tools 的 OpenRouter。它试图用一个 URL 和一个 Token 统一连接 Provider、API、CLI、MCP 和 Skills，同时处理：
+
+```text
+Discovery
+Credential / OAuth
+Permission
+Routing
+Cost
+Audit
+Team Sharing
+```
+
+这与上一期的 [OmniRoute](https://github.com/diegosouzapw/OmniRoute) 形成清晰分工：
+
+| 网关 | 管理对象 | 核心问题 |
+| --- | --- | --- |
+| Model Gateway | LLM Provider | 模型路由、Fallback、Quota、Cost |
+| Tool Gateway | API / CLI / MCP / Skill | 能力发现、凭证注入、权限与审计 |
+
+最重要的架构原则是：**Agent 不应该直接持有所有下游密钥。** Agent 只持有面向 Gateway 的身份；Gateway 根据组织、项目、Tool 和操作类型决定能否注入真实 Credential，并记录审计轨迹。
+
+值得重点研究的数据模型：
+
+```text
+Tool
+Provider
+CredentialRef
+Grant
+Policy
+Invocation
+CostRecord
+AuditEvent
+```
+
+Treg 当前适合当作架构样例观察，是否直接采用还要检查 Provider 覆盖、权限模型、Secret Boundary 和自托管成熟度。
+
+---
+
+## 五、Control Plane：从调度 Agent 到管理“Agent 组织”
+
+本周最重要的趋势，是 Control Plane 明确分化出三个层次。
+
+### 第一层：[google/ax](https://github.com/google/ax) — Workload Orchestrator
+
+AX 把 Agent 当作类似 Kubernetes Workload 的执行单元，用声明式资源组织：
+
+```text
+Task
+  → Agent 任务、资源限制、Sandbox 与生命周期
+
+Workspace
+  → Git、Skills、MCP、工作目录与环境
+
+Model
+  → Provider、模型配置与凭证引用
+```
+
+它提供 `apply / watch / ssh / suspend / resume`，重点是让 Agent Task 可以部署、观察、暂停、恢复和调试。
+
+AX 与 Coder 的边界可以这样理解：
+
+```text
+Coder
+  → 创建和治理开发 Workspace
+
+Google AX
+  → 在 Workspace / Sandbox 上调度 Agent Workload
+```
+
+### 第二层：[paperclipai/paperclip](https://github.com/paperclipai/paperclip) — Organization Control Plane
+
+Paperclip 管理的不只是 Task，而是一个包含人和 Agent 的组织：
+
+- Goal、Project 与 Task 的对齐；
+- 角色、组织结构、责任与汇报关系；
+- 原子任务领取与跨 Agent 委派；
+- Budget、Cost Hard Limit 与 Approval Gate；
+- Skills、Evals、训练记录与绩效；
+- Secrets、RBAC、Audit 和多组织隔离。
+
+AX 回答“任务在哪里运行”，Paperclip 回答“为什么运行、谁负责、花多少钱、由谁批准”。
+
+```text
+Infrastructure Control Plane
+  → Task / Workspace / Model / Sandbox
+
+Organization Control Plane
+  → Goal / Role / Budget / Approval / Performance
+```
+
+### 第三层：[block/buzz](https://github.com/block/buzz) — Collaboration & Evidence Substrate
+
+Buzz 使用统一的签名事件模型承载人、Agent、Workflow 与 Git 活动。消息、Reaction、Patch、CI、Approval 和 Merge Decision 都进入同一份事件日志。
+
+Agent 有自己的 Key、Channel Membership 和 Audit Trail；权限绑定身份与成员关系，而不是把 Agent 当作共享机器人账号。
+
+```text
+Human / Agent / Workflow
+          ↓
+      Signed Event
+          ↓
+Message / Patch / CI / Approval / Merge
+          ↓
+ Searchable Collaboration Record
+```
+
+Buzz 与 Atlas 都关注 Provenance，但作用域不同：
+
+| 项目 | 记录对象 |
+| --- | --- |
+| Atlas | Session、Tool、File Change 与 Commit 的产生过程 |
+| Buzz | 人和 Agent 围绕代码、任务与审批发生的协作事件 |
+
+### 三层怎样组合
+
+```text
+Paperclip
+Goal / Org / Budget / Approval
+        ↓
+Google AX
+Task / Workspace / Model / Sandbox
+        ↓
+BrowserSkill / Mobile MCP / Coder
+Concrete Tool Execution
+
+Buzz 横跨全链路：Identity / Event / Evidence / Audit
+```
+
+这张分层图比“哪个多 Agent 框架更强”更有学习价值。系统不一定使用这三个具体项目，但生产级 Agent 平台迟早需要解决这三个层次的问题。
+
+---
+
+## 六、本周知识图更新
+
+```text
+Agent Engineering
+│
+├─ Skills / Domain Agents
+│  ├─ Superpowers / Security Audit Skill
+│  └─ Anthropic Financial Services
+│
+├─ Agent-Native Application
+│  └─ Shared Action / Data / State / Permission
+│
+├─ Context / Memory
+│  ├─ Atlas: Execution Provenance
+│  ├─ ai-memory: Cross-Agent Handoff
+│  └─ Hindsight: Reflective Learning
+│
+├─ Tool Gateway
+│  └─ Treg: Discovery / Credential / Policy / Audit
+│
+├─ Runtime / Execution Environment
+│  ├─ BrowserSkill: Authenticated Browser + Takeover
+│  ├─ Mobile MCP: Accessibility-first Device Runtime
+│  ├─ Coder: Isolated Workspace
+│  └─ Univer: Office Runtime
+│
+├─ Workload Control Plane
+│  └─ Google AX: Task / Workspace / Model
+│
+├─ Organization Control Plane
+│  └─ Paperclip: Goal / Org / Budget / Approval / Eval
+│
+└─ Collaboration Substrate
+   └─ Buzz: Identity / Signed Event / Evidence / Audit
+```
+
+Local Inference 本周没有出现足以改变学习路线的新材料。Magnitude 与 llmfit 继续作为模型选择和本地运行参考即可；当前优先级应该放在 Runtime Boundary、Tool Governance 和 Control Plane。
+
+---
+
+## 七、项目学习优先级
+
+### 第一层：建议真正读架构与做实验
+
+| 项目 | 优先内容 | 学习目标 |
+| --- | --- | --- |
+| [google/ax](https://github.com/google/ax) | Concepts、Task / Workspace / Model、Suspend / Resume | 理解 Agent Workload 调度 |
+| [paperclipai/paperclip](https://github.com/paperclipai/paperclip) | Goal Alignment、Heartbeat、Budget、Approval、Eval | 理解组织治理层 |
+| [Tencent/BrowserSkill](https://github.com/Tencent/BrowserSkill) | Architecture、Session、Tab Ownership、Human Takeover、Evals | 理解真实浏览器执行边界 |
+| [akitaonrails/ai-memory](https://github.com/akitaonrails/ai-memory) | Capture → Consolidate → Recall → Handoff | 理解跨 Agent 连续性 |
+
+### 第二层：重点理解数据模型
+
+| 项目 | 重点 |
+| --- | --- |
+| [vectorize-io/hindsight](https://github.com/vectorize-io/hindsight) | Fact / Experience / Observation / Mental Model |
+| [superdesigndev/treg](https://github.com/superdesigndev/treg) | Tool / Provider / CredentialRef / Grant / Invocation |
+| [block/buzz](https://github.com/block/buzz) | Identity / Signed Event / Channel / Patch / Approval |
+| [BuilderIO/agent-native](https://github.com/BuilderIO/agent-native) | Shared Action / State / Permission / Agent-UI 双入口 |
+
+### 第三层：直接拿来验证具体场景
+
+| 项目 | 场景 |
+| --- | --- |
+| [mobile-next/mobile-mcp](https://github.com/mobile-next/mobile-mcp) | Android 真机或 iOS Simulator 自动化 |
+| [anthropics/financial-services](https://github.com/anthropics/financial-services) | 财报、Earnings Review 与证券领域 Agent |
+| [coder/coder](https://github.com/coder/coder) | Agent Workspace 与执行隔离 |
+| [dream-num/univer](https://github.com/dream-num/univer) | Agent 结构化编辑 Office 文档 |
+
+---
+
+## 八、下周实践计划：2026-10-05 ～ 2026-10-11
+
+目标：在上一期 `Verifiable Agent Run` 原型上，增加最小 Control Plane，把一次执行升级为**可调度、可授权、可审批、可追踪**的任务。
+
+### 周一：定义控制平面对象
+
+参考 Google AX，设计：
+
+```ts
+type AgentTask = {
+  id: string;
+  goalId: string;
+  workspaceId: string;
+  modelId: string;
+  runtime: "shell" | "browser" | "mobile";
+  status: "queued" | "running" | "suspended" | "succeeded" | "failed" | "cancelled";
+  budget: { maxTokens: number; maxCostUsd: number };
+};
+```
+
+输出：ER 图和状态迁移图。
+
+### 周二：实现 Runtime Adapter
+
+- 保留现有 Mock / Shell Runtime；
+- 新增 `BrowserRuntimeAdapter` 接口，不必立即连接真实浏览器；
+- 统一 `start / execute / suspend / resume / cancel / inspect`；
+- 明确副作用未知时的 `effect: unknown` 状态，禁止自动重试。
+
+### 周三：增加 Tool Grant
+
+参考 Treg 与 OpenShell，设计：
+
+```text
+Agent Identity
+  → Tool Grant
+  → Policy Check
+  → Credential Reference
+  → Invocation
+  → Audit Event
+```
+
+实现两个 Tool：只读 `search_docs` 与写操作 `create_issue`。写操作必须经过显式 Grant，不把真实 Secret 写入 Task 或 Event。
+
+### 周四：增加 Handoff 与 Memory Ref
+
+- 为 Task 保存 `memoryRefs`，不直接复制整段 Session；
+- 实现一个 `pending → claimed` 的 claim-once Handoff；
+- Handoff 至少包含当前目标、已完成、失败尝试、开放问题和下一步；
+- 记录领取者身份与时间。
+
+### 周五：增加 Approval 与 Budget Gate
+
+参考 Paperclip：
+
+- 超过 Cost Budget 时进入 `suspended`；
+- 写操作进入 `waiting_approval`；
+- Approval 保存 approver、reason、scope、createdAt；
+- 拒绝后不允许复用旧 Approval 重试其他参数。
+
+### 周六：做一个最小控制台页面
+
+用 React + TypeScript 展示：
+
+```text
+Task List
+Run Timeline
+Tool Invocations
+Budget
+Approval Queue
+Artifacts
+```
+
+借鉴 Agent-Native，让 UI 按钮和 Agent Tool 调用同一个 `approveTask` / `cancelTask` Action，共用校验与权限。
+
+### 周日：端到端验证与复盘
+
+运行一个完整场景：
+
+```text
+创建 Task
+  → 分配 Workspace / Model
+  → 调用只读 Tool
+  → 请求写 Tool
+  → 人工批准
+  → 产生 Artifact
+  → 写入 Event Log
+  → 创建 Handoff
+```
+
+检查五类失败：重复领取 Handoff、Budget 超限、Approval 参数变化、Runtime 中断、Tool 副作用未知。最后输出一篇短笔记：《Agent Control Plane 应该控制什么，不应该控制什么》。
+
+---
+
+本周最值得建立的认识是：Agent 平台不是把 Model、Tools 和 Chat UI 装在一起。随着执行面扩大，系统必须同时管理 **Application Capability、Memory、Tool Credential、Runtime Boundary、Workload Lifecycle、Organization Policy 与 Collaboration Evidence**。
+
+下一阶段不要继续横向收集 Control Plane 项目，先用一个最小原型把 `Task → Runtime → Tool Grant → Approval → Event → Handoff` 跑通。这条链路打通后，再判断 Google AX、Paperclip、Buzz 或 Treg 中哪些设计真正适合自己的 Agent 平台。
