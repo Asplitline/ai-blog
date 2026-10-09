@@ -1,0 +1,230 @@
+---
+title: "Agent Engineering 学习周报 #4：Harness 编排、策略 Runtime 与异步审批"
+description: "2026-09-28 至 2026-10-04 的 Agent 工程学习材料：OpenRig、OpenShell、PageIndex、context-mode、Impeccable、Cursor Plugins 与 Cloudflare OS。"
+date: "2026-10-09"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Skills
+  - Harness
+  - Runtime
+  - Context Engineering
+  - Control Plane
+  - Evaluation
+  - Weekly Review
+draft: false
+---
+
+> 覆盖 2026-09-28（周一）至 2026-10-04（周日）。根据当周已收集的 GitHub Trending 线索、历史榜单快照及官方仓库文档复核整理。**进入本周学习雷达**与**本周首次发布**是不同事件；具体能力以仓库复核时的文档为准。
+
+## 本周学习结论
+
+前几期形成了 Skills → Harness → Context / Memory → Runtime → Control Plane → Evaluation 的知识图。本周重点补上三个工程接口：
+
+1. **Harness 与 Runtime 分层**：OpenRig 管理现成 Coding Agent 的角色和协作，OpenShell 控制执行时能接触的文件、网络和凭证。
+2. **Context I/O 独立成层**：context-mode 筛选进入模型的工具输出；PageIndex 从长文档的章节结构中定位证据。
+3. **质量与审批进入执行链路**：Impeccable 将 UI 评审接入规则和 Hook；Cloudflare OS 的 Gatekeeper 将有副作用的操作转为可模拟、可延迟审批的事务。
+
+| 主题 | 项目 | 学习优先级 |
+| --- | --- | --- |
+| Skills / Evaluation | [Impeccable](https://github.com/pbakaus/impeccable) | P0，React 页面实践 |
+| Runtime / Security | [OpenShell](https://github.com/NVIDIA/OpenShell) | P0，Policy 与 Sandbox |
+| Gateway / Control Plane | [Cloudflare OS](https://github.com/cloudflare/cloudflare-os) | P0，模拟执行与审批 |
+| Context / Memory | [context-mode](https://github.com/mksglu/context-mode) | P1，工具输出 A/B |
+| Retrieval / RAG | [PageIndex](https://github.com/VectifyAI/PageIndex) | P1，财报检索 A/B |
+| Harness / Coding Agents | [OpenRig](https://github.com/mvschwarz/openrig) | P1，Seat 与多 Harness |
+| Developer Tooling | [Cursor Plugins](https://github.com/cursor/plugins) | P2，插件分发 |
+
+---
+
+## 一、Skills 与 Developer Tooling：把质量要求放进执行链路
+
+### [pbakaus/impeccable](https://github.com/pbakaus/impeccable)
+
+**作用**：将产品事实、UI 设计评审、确定性检测和编辑 Hook 组织成统一 Skill。仓库当前 README 列出 24 个命令、59 条确定性检测规则，规则数量随版本可能变化。
+
+**实现思路**：init 生成 PRODUCT.md，保存受众、目标和产品约束；document 整理 DESIGN.md；随后通过 shape → critique → audit → polish 形成设计、主观评审、工程检查和修复闭环。Detector 产出可重复的规则结果，最终视觉效果仍需人工复核。
+
+**与此前项目的关系**：[cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) 将安全审计拆成覆盖、独立验证和结构化产物；Impeccable 把相似思想应用到前端设计。适合已有 React、Tailwind、shadcn/ui 组件库、希望 AI 复用既有设计语言的项目。
+
+**下一步**：选一个设置页，保留改造前后截图、规则报告和代码 diff。统计修复回合与人工返工次数，验证 Skill 是否真正改善交付质量。
+
+### [cursor/plugins](https://github.com/cursor/plugins)
+
+**作用**：Cursor 官方插件仓库通过每个插件的 .cursor-plugin/plugin.json 描述能力，组织 Skills、Rules、MCP 等可安装组件。
+
+**关系**：[obra/superpowers](https://github.com/obra/superpowers) 提供软件开发的技能工作流；Cursor Plugins 提供能力的分发、安装与升级结构。
+
+**下一步**：把已有的“页面设计指南”封装为最小插件，验证清单、安装、规则加载和更新。
+
+---
+
+## 二、Harness / Coding Agents：管理多个成熟 Agent
+
+### [mvschwarz/openrig](https://github.com/mvschwarz/openrig)
+
+**作用**：通过团队规格组织 Claude Code、Codex 等原生 Coding Agent，管理角色、消息、任务队列、终端和会话恢复。Rig / Pod / Seat 是关键概念；Seat 保持团队身份，底层会话负责具体执行。
+
+**本周信号**：OpenRig 出现在 [9 月 28 日历史趋势记录](https://devlive.org/report/topic/agent-orchestration/daily/2026-09-28)。它代表 Meta-Harness：将已经成熟的 Coding Harness 作为可编排的团队成员。
+
+| 项目 | 管理对象 | 学习边界 |
+| --- | --- | --- |
+| [OpenRig](https://github.com/mvschwarz/openrig) | Seat / Pod / Harness Team | 身份、消息、恢复 |
+| [Google AX](https://github.com/google/ax) | Task / Workspace / Model | 工作负载生命周期 |
+| [Paperclip](https://github.com/paperclipai/paperclip) | Goal / Organization / Budget | 组织治理与审批 |
+| [Buzz](https://github.com/block/buzz) | Identity / Collaboration / Event | 人机协作证据 |
+
+**下一步**：阅读 [Getting Started](https://github.com/mvschwarz/openrig/blob/main/docs/reference/getting-started.md) 和 [Rig Spec](https://github.com/mvschwarz/openrig/blob/main/docs/reference/rig-spec.md)。只使用 Builder 与 Reviewer 两个角色完成一个小改动，观察消息、状态、独立审查和恢复成本。
+
+---
+
+## 三、Runtime / Security：从隔离环境走向策略验证
+
+### [NVIDIA/OpenShell](https://github.com/NVIDIA/OpenShell)
+
+**作用**：为 Agent 提供受控 Sandbox，约束文件、系统调用与网络访问；用声明式 Policy 表达能力范围，并在策略变化时通过形式化验证检查新增访问。Provider 在获准目标的请求中代理凭证，降低密钥暴露风险。
+
+**本周信号**：[9 月 29 日 Trending 存档](https://github.com/Rain1er/trending/issues/390) 与 [9 月 30 日榜单观察](https://blog.sopenu.com/en/posts/2026-09-30-github-trending/) 都记录了 OpenShell 的热度。
+
+~~~text
+Agent / Harness
+   ↓
+Sandbox：文件 / 进程 / 网络隔离
+   ↓
+Policy：声明可访问资源
+   ↓
+Advisor / Prover：审查策略变化
+   ↓
+Provider：面向批准端点的凭证代理
+~~~
+
+**关系**：[Coder](https://github.com/coder/coder) 管理开发工作空间；Google AX 管理工作负载；OpenShell 管理一次执行的资源权限和策略变更边界。
+
+**下一步**：阅读 [Architecture](https://docs.nvidia.com/openshell/latest/about/architecture) 和 [Policies](https://docs.nvidia.com/openshell/latest/how-it-works/policies/overview)。设计三个测试：允许读取工作目录、拒绝读取敏感目录、拒绝访问未授权域名。验收以策略文件、拒绝日志和审批记录为准。
+
+---
+
+## 四、Context / Memory / RAG：管理进入模型的证据
+
+### [mksglu/context-mode](https://github.com/mksglu/context-mode)
+
+**作用**：通过 MCP、Hooks 与本地沙箱处理大体积工具输出，向模型返回筛选或计算结果；把任务、修改和会话事件写入 SQLite，使用 FTS5 / BM25 按需恢复工作状态。
+
+**本周意义**：Context Engineering 开始覆盖 Tool Output Routing。此前的 [Hindsight](https://github.com/vectorize-io/hindsight) 负责 Retain / Recall / Reflect，关注经验更新；[Atlas](https://github.com/pacifio/atlas) 将 Session、工具调用与 Git 修改关联，关注执行溯源；context-mode 关注本次工具结果怎样进入模型，以及压缩后的连续性。
+
+**验证边界**：仓库自述样例将 315 KB 输出压缩至 5.4 KB，这属于项目方基准，需独立测量任务正确率和信息遗漏。许可证为 Elastic License 2.0（source-available），集成前应核对托管与分发限制。
+
+**下一步**：对同一个 Coding Agent 任务运行 A/B：原始日志直传、工具输出经本地脚本筛选。记录 Token、耗时、漏掉关键事实的次数和恢复会话准确率。
+
+### [VectifyAI/PageIndex](https://github.com/VectifyAI/PageIndex)
+
+**作用**：为专业长文档构建层级树索引，Agent 按章节结构逐步定位原文证据。适用于财报、监管文件、法律文档和技术手册。
+
+**本周变化**：9 月末再次受到关注；仓库列出的本地 SDK 和 Flash 索引属于 2026 年 8 月已有更新。本周重点是将结构化推理检索纳入 Agent 的证据层。
+
+**关系**：PageIndex 解决“证据在文档的哪一节”；context-mode 解决“哪些检索结果进入模型”；Hindsight 解决“哪些经历值得长期保留”。
+
+**下一步**：选择一份公开年报，设计 10 道问题：5 道数字定位、3 道跨章节解释、2 道证据不足题。与向量 RAG 对比答案正确率、引用页准确率、延迟和每题成本。项目方 FinanceBench 成绩应按原始评估设置复核。
+
+---
+
+## 五、Gateways / Control Plane：把副作用转成可审批事务
+
+### [cloudflare/cloudflare-os](https://github.com/cloudflare/cloudflare-os)
+
+**作用**：Gadget 是用户专属、可由 Agent 修改的应用；Blueprint 是可复用模板；Gatekeeper 负责外部服务授权、资源范围、审计和人工审批。
+
+**最有价值的机制**：Gatekeeper 支持模拟执行和异步审批。Agent 请求有副作用的操作时，先生成模拟结果并继续规划，用户随后集中批准或拒绝，系统再执行真实写入。
+
+~~~text
+Agent 请求修改外部资源
+         ↓
+Gatekeeper 校验能力范围
+         ↓
+模拟执行 + 记录预期结果
+         ↓
+Agent 基于模拟状态继续规划
+         ↓
+用户集中批准 / 拒绝
+         ↓
+真实执行 + 结果核对 + 审计
+~~~
+
+**关系**：Paperclip 关注组织审批，OpenShell 关注 Runtime 策略，Buzz 关注事件证据；Cloudflare OS 提供面向用户的能力授权和审批交互模型。仓库标注 Early Access，适合学习架构和验证原型。
+
+**必须设计的边界**：模拟成功只是规划状态。真实提交时可能遇到外部资源变化，需处理幂等键、资源版本、操作依赖、过期、失败补偿与审计。前置操作被拒绝后，依赖模拟结果的后续动作需要重新校验。
+
+以“Agent 修改 CRM 客户标签”为例，最小数据结构应包含：
+
+| 字段 | 作用 |
+| --- | --- |
+| operationId / idempotencyKey | 唯一操作与去重 |
+| actor / capability / resource | 申请主体、权限与目标 |
+| proposedChange / simulatedResult | 待审批变更与模拟结果 |
+| resourceVersion / expiresAt | 版本冲突与过期 |
+| status / actualResult / auditEvents | 状态、真实结果与审计 |
+
+~~~text
+PROPOSED → SIMULATED → PENDING_APPROVAL
+                          ├→ REJECTED
+                          └→ APPROVED → EXECUTING
+                                           ├→ SUCCEEDED
+                                           └→ FAILED / NEEDS_REVIEW
+~~~
+
+---
+
+## 六、Local Inference、Evaluation 与工具链的延续项
+
+本周已采集样本中，Local Inference 与通用 Agent Benchmark 暂无足够明确的新项目值得提升优先级。继续关注 [Ollama](https://github.com/ollama/ollama) 等本地推理底座，重点研究模型路由、数据出站、延迟和失败回退。
+
+Evaluation 延续 [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) 的独立验证思路，以及 [alibaba/open-code-review](https://github.com/alibaba/open-code-review) 的确定性工程约束。三个实验统一保留输入、规则、运行日志和结果：
+
+| 实验 | 指标 | 证据 |
+| --- | --- | --- |
+| UI Skill | 规则命中、修复回合、人工评审通过率 | 截图、Detector、diff |
+| Context / RAG | Token、正确率、引用准确率、耗时 | 问题集、检索轨迹、答案 |
+| Runtime / Approval | 越权拒绝、重复提交、版本冲突 | Policy、状态转换、审计事件 |
+
+### 更新后的知识图
+
+~~~text
+Product / Domain Goal
+  ├─ Skills / Plugins ───── Impeccable / Cursor Plugins
+  ├─ Coding Harness Team ─ OpenRig / Claude Code / Codex
+  ├─ Context I/O ───────── context-mode
+  │    ├─ Document Evidence: PageIndex
+  │    └─ Memory / Provenance: Hindsight / Atlas
+  ├─ Capability Gateway ── Cloudflare OS Gatekeeper
+  ├─ Secure Runtime ────── OpenShell
+  ├─ Workload Plane ────── Google AX
+  ├─ Organization Plane ── Paperclip
+  └─ Identity / Audit ──── Buzz
+                 ↓
+       Independent Evaluation
+~~~
+
+这是职责地图。实际工程应根据需求选型，优先完成一次任务的权限、状态、审批和证据闭环。
+
+---
+
+## 七、下周学习计划（2026-10-12 ～ 2026-10-18）
+
+**目标**：用 React + TypeScript 实现“可审批的 Agent 操作台”最小原型。外部写入使用 Mock API；工作日每次约 45～90 分钟，周末每天约 2～3 小时。
+
+| 日期 | 任务 | 验收产物 |
+| --- | --- | --- |
+| 周一 10/12 | 阅读 Impeccable，选 React 页面建立基线 | 截图、组件清单、初次审查 |
+| 周二 10/13 | 执行 critique / audit / polish，阅读 Cursor Plugin Manifest | UI diff、规则报告、插件结构 |
+| 周三 10/14 | 做日志筛选 A/B，阅读 PageIndex | Token 记录、10 道财报问题 |
+| 周四 10/15 | 阅读 OpenShell Architecture / Policy，设计拒绝测试 | policy.yaml、3 个安全用例 |
+| 周五 10/16 | 阅读 Cloudflare OS Gatekeeper，设计审批状态机 | 字段表、API 契约、冲突规则 |
+| 周六 10/17 | 实现 Proposal / Approval Queue / Audit Timeline | 批准、拒绝、过期交互原型 |
+| 周日 10/18 | 联调 Mock API，补幂等和版本冲突测试；阅读 OpenRig | 录屏、测试报告、改进清单 |
+
+**最小验收标准**：一次操作完整经历模拟、审批、执行、审计；拒绝与过期路径可演示；重复提交只产生一次真实副作用；至少一页 UI 有前后截图和检测报告；至少一组 Context / RAG A/B 有可复现数据。
+
+**阅读顺序**：[Impeccable](https://github.com/pbakaus/impeccable) → [OpenShell](https://github.com/NVIDIA/OpenShell) → [Cloudflare OS](https://github.com/cloudflare/cloudflare-os) → [context-mode](https://github.com/mksglu/context-mode) → [PageIndex](https://github.com/VectifyAI/PageIndex) → [OpenRig](https://github.com/mvschwarz/openrig)。
+
+下周最有价值的成果，是将 Gatekeeper 的异步审批模型与 OpenShell 的最小权限模型落实到同一个可演示的 Agent 操作台。
