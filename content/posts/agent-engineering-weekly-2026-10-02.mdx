@@ -1,0 +1,622 @@
+---
+title: "Agent Engineering 学习周报 #5：从 UI Skill 到 Agent 治理与确定性测试"
+description: "2026-10-02 至 2026-10-09 的 Agent 工程学习材料：Impeccable、Cursor Plugins、Cloudflare OS、iFixAi 与 tester-army/e2e。"
+date: "2026-10-10"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Skills
+  - Runtime
+  - Control Plane
+  - Evaluation
+  - Developer Tooling
+  - Agent Testing
+  - Weekly Review
+draft: false
+---
+
+> 本期开始将周报统计窗口调整为 **上周五 → 本周五**，方便周六、周日直接阅读和实践。本期覆盖 2026-10-02（周五）至 2026-10-09（周五）。由于统计口径从“自然周”切换到“周五到周五”，与上一期 2026-09-28 ～ 2026-10-04 存在 10 月 2 日至 4 日的少量重叠；从下一期开始不再重复。
+
+## 本周学习结论
+
+这一周真正值得保留的变化，不是又出现了几个新的 Agent 框架，而是 Agent 工程开始从“会调用工具”继续向三个方向收敛：
+
+1. **Skill 从提示词升级为可执行质量门禁**：Impeccable 将设计评审拆成 Skill、规则检测、Hook 与 CI 输出。
+2. **权限从同步拦截升级为可模拟、可延迟审批的事务模型**：Cloudflare OS 的 Gatekeeper 把高风险动作变成先模拟、后集中确认的执行链路。
+3. **Evaluation 从模型能力测试进入真实 Agent 系统审计与确定性回归**：iFixAi 关注已部署 Agent 的行为证据，tester-army/e2e 则把 Agent 首次探索沉淀为后续可重复执行的测试。
+
+因此，本周最值得形成的工程链路是：
+
+```text
+Skill
+  ↓
+Agent Action
+  ↓
+Policy / Approval
+  ↓
+Execution Evidence
+  ↓
+Independent Evaluation
+  ↓
+Deterministic Regression
+```
+
+这条链路比继续堆更多 Prompt、Tools 或 Subagents 更值得投入。
+
+## 一、Skills：Skill 正在变成可执行的工程质量系统
+
+### 1. Impeccable：把 UI 审美与工程检查变成 Agent Skill
+
+GitHub：[pbakaus/impeccable](https://github.com/pbakaus/impeccable)
+
+Impeccable 的价值不在于“让 AI 设计得更好看”这句口号，而在于它把过去高度主观的 UI Review 拆成了一套可以被 Agent 重复执行的流程。
+
+它的结构可以概括为：
+
+```text
+PRODUCT.md / DESIGN.md
+        ↓
+Design Skills
+        ↓
+critique / audit / polish / harden
+        ↓
+Deterministic Detectors
+        ↓
+Hooks / CI
+        ↓
+Agent Fix
+```
+
+这意味着设计规范不再只是文档，而可以进入 Agent 的执行闭环。
+
+它与之前研究过的 [Cloudflare Security Audit Skill](https://github.com/cloudflare/security-audit-skill) 很像：前者检查 UI，后者检查安全，但工程方法是一致的——**LLM 负责理解和判断，确定性规则负责守住底线，验证结果必须能结构化输出。**
+
+这对前端和 Agent 平台尤其重要。一个成熟 Skill 不应该只有 `SKILL.md`，还应该回答三个问题：
+
+- 哪些问题适合 LLM 判断？
+- 哪些问题必须由确定性规则检测？
+- Agent 修改后如何确认真的修好了？
+
+### 值得继续学什么
+
+优先研究 Impeccable 如何组织：
+
+- `PRODUCT.md / DESIGN.md` 作为稳定上下文
+- critique、audit、polish 等工作流之间的职责划分
+- detector 如何将主观设计原则转为确定性检查
+- Hook 如何自动触发验证
+- JSON / CI 输出如何成为后续 Agent 的输入
+
+这可以直接迁移到自己的 React 项目中。
+
+---
+
+## 二、Developer Tooling：Skill 生态开始插件化
+
+### 2. Cursor Plugins：Skills、Rules、MCP 开始进入统一分发单元
+
+GitHub：[cursor/plugins](https://github.com/cursor/plugins)
+
+过去一段时间我们研究过：
+
+- [mattpocock/skills](https://github.com/mattpocock/skills)：Skill 内容本身
+- [obra/superpowers](https://github.com/obra/superpowers)：软件工程方法论 Skill
+- [vercel-labs/skills](https://github.com/vercel-labs/skills)：Skill 安装与分发
+- [Tencent/teamai-cli](https://github.com/Tencent/teamai-cli)：团队级 Skills、Rules、MCP 与知识管理
+
+Cursor Plugins 说明这条路线又向前走了一步：**Skill 不再是孤立 Markdown 文件，而开始成为插件包中的一个组成部分。**
+
+插件可以同时包含：
+
+```text
+Plugin
+├── Skills
+├── Rules
+├── MCP
+├── Manifest
+└── Distribution / Validation
+```
+
+这对 Agent 平台设计有一个很明确的启发：未来真正需要管理的可能不是 Skill，而是一个更高层级的 **Agent Capability Package**。
+
+这个包需要考虑：
+
+- 版本
+- 权限
+- 依赖
+- 工具
+- Prompt / Rules
+- 生命周期
+- 团队分发
+- 更新与回滚
+
+### 值得继续学什么
+
+Cursor Plugins 本身不用投入太多时间研究实现细节，但值得把它与 TeamAI、Vercel Skills 放在一起，看清楚 Skill Distribution 的演进方向。
+
+---
+
+## 三、Runtime / Control Plane：权限模型开始从“允许/拒绝”升级
+
+### 3. Cloudflare OS：模拟执行 + 异步审批
+
+GitHub：[cloudflare/cloudflare-os](https://github.com/cloudflare/cloudflare-os)
+
+Cloudflare OS 本周最值得关注的不是它的 Workspace 产品形态，而是 Gatekeeper。
+
+系统将能力拆成三类对象：
+
+- **Gadget**：用户自己的 Agent 可修改应用
+- **Blueprint**：可复制、可分发的应用模板
+- **Gatekeeper**：负责 OAuth、权限、审计和人工审批
+
+最值得研究的是它处理有副作用操作的方式。
+
+传统 Agent Approval 通常是：
+
+```text
+Agent 想执行操作
+→ 停止
+→ 用户批准
+→ Agent 继续
+```
+
+这种模式安全，但会不断打断长任务。
+
+Cloudflare OS 提出的思路更接近：
+
+```text
+Agent 计划操作
+→ Sandbox / Simulation
+→ 得到预测结果
+→ Agent 继续规划后续步骤
+→ 汇总待执行操作
+→ 用户统一批准
+→ 真正提交副作用
+```
+
+这相当于给 Agent 增加了一个事务层。
+
+它与此前项目的关系很清楚：
+
+- [NVIDIA/OpenShell](https://github.com/NVIDIA/OpenShell)：控制 Agent 在运行时可以访问什么
+- [superdesigndev/treg](https://github.com/superdesigndev/treg)：控制 Agent 如何获得工具、凭证与权限
+- [BuilderIO/agent-native](https://github.com/BuilderIO/agent-native)：让 UI 与 Agent 共用业务 Action
+- Cloudflare OS：**让 Action 在真正产生副作用之前进入模拟与审批状态**
+
+可以把它们组合成一条完整链路：
+
+```text
+Business Action
+      ↓
+Tool Gateway
+      ↓
+Runtime Policy
+      ↓
+Simulation
+      ↓
+Approval
+      ↓
+Commit Side Effect
+      ↓
+Audit Log
+```
+
+### 为什么值得现在学
+
+如果正在设计 Agent 平台、自动化任务或者企业内部 Agent，这比“每次危险操作弹一个确认框”成熟得多。
+
+它尤其适合：
+
+- 发邮件
+- 创建工单
+- 修改 CRM
+- 调用支付 / 财务系统
+- GitHub 写操作
+- 批量修改业务数据
+
+### 值得继续学什么
+
+优先研究：
+
+- capability-based access
+- 模拟结果如何表达
+- pending action 如何持久化
+- approval 如何与任务状态机结合
+- 多个待审批动作如何批量确认或部分拒绝
+
+---
+
+## 四、Evaluation：开始评估“Agent 系统”，而不只是模型
+
+### 4. iFixAi：Agent 独立审计层
+
+GitHub：[ifixai-ai/iFixAi](https://github.com/ifixai-ai/iFixAi)
+
+iFixAi 值得关注的原因是它把评估对象从 Model / Prompt 转向了**已经部署的 Agent 系统**。
+
+它关注的问题不是：
+
+> 这个模型在 benchmark 上得多少分？
+
+而是：
+
+> 这个 Agent 在真实执行时是否遵守权限、引用可靠事实、留下审计证据，并在需要的时候升级给人？
+
+大致可以理解成：
+
+```text
+Running Agent
+    ↓
+Execution Evidence
+    ↓
+Fixtures / Capability Hooks
+    ↓
+Independent Judge
+    ↓
+Governance Score / Findings
+```
+
+这是 Agent Evaluation 一个非常值得保留的变化。
+
+此前研究的 Cloudflare Security Audit Skill 更接近“在一次工作流内部验证结果”，iFixAi 更像是一个外部审计者。
+
+两个角色应该同时存在：
+
+```text
+Agent 内部 Verification
+        +
+Agent 外部 Independent Evaluation
+```
+
+只有内部自检是不够的，因为执行 Agent 与验证 Agent 如果共享相同上下文、假设和错误模式，很容易一起犯错。
+
+### 需要谨慎的地方
+
+项目自己的评分体系、指标设计和多模型 Judge 一致性仍然需要独立验证。
+
+真正值得学习的是架构思想，而不是直接相信某个 A～F 分数。
+
+### 值得继续学什么
+
+重点研究：
+
+- Eval Fixture 如何定义
+- 如何采集 Agent 执行证据
+- Judge 与被测 Agent 如何隔离
+- 多 Judge 分歧如何处理
+- 如何把 Eval 结果接回 CI / Deployment Gate
+
+---
+
+## 五、Agent Testing：探索与回归正在分离
+
+### 5. tester-army/e2e：第一次让 Agent 探索，之后转为确定性执行
+
+GitHub：[tester-army/e2e](https://github.com/tester-army/e2e)
+
+这是本期我认为最有工程价值的项目之一。
+
+Agent 驱动 E2E 测试一直有一个问题：如果每次运行都重新让模型理解页面、寻找按钮和规划动作，那么测试会：
+
+- 慢
+- 贵
+- 不稳定
+- 很难判断失败到底来自产品还是模型
+
+该项目的思路是：
+
+```text
+第一次运行
+Natural Language
+      ↓
+Agent 探索 UI
+      ↓
+执行 Action
+      ↓
+Assertion 验证成功
+      ↓
+记录稳定动作
+
+之后运行
+Recorded Actions
+      ↓
+Deterministic Replay
+      ↓
+Assertions
+```
+
+只有当页面发生变化、原有动作无法继续时，才重新让 Agent 介入。
+
+这个模型非常值得迁移到其他 Agent 工程场景：
+
+> **Agent 用于探索未知路径，确定性程序用于重复执行已知路径。**
+
+这与此前 Alibaba Open Code Review 的思路高度一致：
+
+```text
+确定性 Pipeline
+        ↕
+LLM / Agent 判断
+```
+
+而不是所有东西都交给 Agent。
+
+### 为什么与你的场景特别相关
+
+它覆盖 Web、iOS 和 Android，因此可以直接用于：
+
+- React 页面
+- H5
+- Android 真机
+- iOS Simulator
+
+此前研究过 [mobile-next/mobile-mcp](https://github.com/mobile-next/mobile-mcp)，它解决的是“Agent 如何操作移动设备”；tester-army/e2e 则进一步解决“这些操作如何变成可重复测试”。
+
+可以组合成：
+
+```text
+Mobile MCP
+   ↓
+Agent Exploration
+   ↓
+Validated Action Trace
+   ↓
+Deterministic E2E Regression
+```
+
+### 值得继续学什么
+
+重点验证：
+
+- Agent 动作如何被记录
+- Locator 如何稳定化
+- assertion 在什么时机将探索路径标记为可信
+- UI 改变时如何触发重新探索
+- Web 与移动端抽象是否统一
+
+---
+
+## 六、本周知识图更新
+
+前几期形成的 Agent Engineering 图谱已经比较完整：
+
+```text
+Skills
+  ↓
+Harness
+  ↓
+Context / Memory
+  ↓
+Runtime
+  ↓
+Sandbox / Policy
+  ↓
+Control Plane
+  ↓
+Tool Gateway
+  ↓
+Agent-Native Application
+```
+
+本周建议再补两层：
+
+```text
+Skills
+  ↓
+Harness
+  ↓
+Context / Memory
+  ↓
+Runtime
+  ↓
+Sandbox / Policy
+  ↓
+Simulation / Approval
+  ↓
+Tool Execution
+  ↓
+Execution Evidence
+  ↓
+Independent Evaluation
+  ↓
+Deterministic Regression
+```
+
+这里最关键的变化是：**Agent 工程已经不再只是“如何让 Agent 更强”，而开始认真解决“怎么证明 Agent 做对了、怎么限制它做错、怎么让正确行为可以稳定复现”。**
+
+---
+
+## 七、本周项目优先级
+
+| 优先级 | 项目 | 原因 |
+| --- | --- | --- |
+| P0 | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | 最适合直接结合 React 项目实践 Skill + Detector + Hook |
+| P0 | [cloudflare/cloudflare-os](https://github.com/cloudflare/cloudflare-os) | 模拟执行与异步审批是 Agent 平台非常关键的交互模型 |
+| P0 | [tester-army/e2e](https://github.com/tester-army/e2e) | 展示 Agent 探索如何沉淀为确定性回归 |
+| P1 | [ifixai-ai/iFixAi](https://github.com/ifixai-ai/iFixAi) | 理解独立 Agent Eval / Governance Layer |
+| P2 | [cursor/plugins](https://github.com/cursor/plugins) | 观察 Skill Distribution 向插件体系演进 |
+
+本周不建议继续扩展更多新仓库。优先把这五个项目放进已有知识图，并做一个真正能运行的小实验。
+
+---
+
+## 八、周末实践计划
+
+### 周六：做一个“可验证 UI Skill”
+
+目标：把 Impeccable 的思想做成一个自己的最小 Skill。
+
+选择项目里的一个真实 React 页面，完成：
+
+1. 建立 `PRODUCT.md`，描述页面目标和核心用户动作。
+2. 建立 `DESIGN.md`，记录布局、间距、层级、按钮、状态和图标规范。
+3. 写一个 `ui-review` Skill，让 Agent 执行 critique。
+4. 至少增加 5 条确定性 Detector，例如：
+   - 可点击区域过小
+   - 同级按钮高度不一致
+   - spacing 不在设计 token 中
+   - icon size 不统一
+   - heading level 跳级
+5. Agent 修改后再次执行 Detector。
+6. 输出 JSON Review Report。
+
+最终产物：
+
+```text
+UI
+ ↓
+Skill Review
+ ↓
+Detector
+ ↓
+Agent Fix
+ ↓
+Detector Again
+ ↓
+Report
+```
+
+如果这个闭环可以稳定工作，就已经比单纯写一个“帮我优化页面”的 Prompt 前进很多。
+
+### 周日：做一个“模拟执行 + 审批”的 Agent Action
+
+目标：借鉴 Cloudflare OS，做最小 Pending Action 模型。
+
+建议选择一个简单动作，例如：
+
+> Agent 创建 GitHub Issue
+
+但不要一开始真的调用 GitHub。
+
+先设计：
+
+```ts
+type PendingAction = {
+  id: string;
+  tool: string;
+  args: unknown;
+  preview: unknown;
+  status: 'pending' | 'approved' | 'rejected' | 'executed';
+};
+```
+
+执行流程：
+
+```text
+Agent Tool Call
+     ↓
+Policy Check
+     ↓
+Simulate
+     ↓
+Pending Action Card
+     ↓
+Approve / Reject
+     ↓
+Real Execute
+     ↓
+Audit Event
+```
+
+UI 重点不是做漂亮，而是把状态表达清楚：
+
+- Agent 想做什么
+- 会影响什么
+- 模拟结果是什么
+- 为什么需要权限
+- 用户批准后实际发生了什么
+
+---
+
+## 九、下周继续研究什么
+
+下一周暂时不要把重点放在“找更多 Agent 框架”。
+
+更值得追踪的是下面四个问题：
+
+### 1. Agent Action 是否正在标准化
+
+关注：
+
+- Agent-Native
+- MCP
+- Tool Gateway
+- Capability Package
+
+核心问题：一个业务 Action 如何同时暴露给 UI、Agent、API、MCP 和 CLI？
+
+### 2. Approval 是否形成统一事务模型
+
+重点观察：
+
+```text
+plan
+→ simulate
+→ approve
+→ execute
+→ rollback
+→ audit
+```
+
+如果多个项目都开始采用类似模式，它很可能成为企业 Agent 的基础抽象。
+
+### 3. Evaluation 是否开始直接消费 Execution Trace
+
+未来 Eval 不应该只拿最终答案评分，而应该读取：
+
+- tool call
+- permission decision
+- source evidence
+- intermediate state
+- human intervention
+- final side effect
+
+这与 Atlas 的 provenance、Buzz 的 event log、iFixAi 的 audit 思路会逐渐汇合。
+
+### 4. Agent 探索结果如何“编译”为确定性程序
+
+这是 tester-army/e2e 带来的一个非常值得继续追踪的方向。
+
+如果这种模式扩展到 Coding Agent，可以得到：
+
+```text
+Agent discovers workflow
+        ↓
+validated trace
+        ↓
+compile / record
+        ↓
+deterministic automation
+```
+
+这可能比“永远让 Agent 重做同一件事情”更符合真实生产系统。
+
+---
+
+## 总结
+
+本期最重要的学习不是某个新 Agent 框架，而是工程边界变得越来越清晰：
+
+```text
+让 Agent 想办法
+        ↓
+但不要让 Agent 决定一切
+        ↓
+确定性规则守住基础约束
+        ↓
+Policy 限制执行范围
+        ↓
+Simulation 预演副作用
+        ↓
+Human Approval 控制关键动作
+        ↓
+Execution Evidence 保存事实
+        ↓
+Independent Eval 判断质量
+        ↓
+Validated Trace 沉淀为确定性执行
+```
+
+如果把这条链路真正实现一遍，对 Agent Engineering 的理解会比继续阅读十个新的 Agent 框架更扎实。
