@@ -1,0 +1,131 @@
+---
+title: "Agent Engineering 学习周报 #6：Harness、Browser Runtime 与 Memory"
+description: "2026-10-09 至 2026-10-16 的 Agent 工程学习笔记与实践计划。"
+date: "2026-10-16"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Skills
+  - Harness
+  - Runtime
+  - Context Engineering
+  - Memory
+  - Control Plane
+  - Evaluation
+  - Weekly Review
+draft: false
+---
+
+> **统计窗口**：2026-10-09（上周五）至 2026-10-16（本周五），北京时间。依据近期 GitHub Trending 观察、官方 README、架构文档和带日期的 Release 交叉核验。项目进入观察范围与发布新版本分别记录。
+
+## 本周学习重点
+
+本期值得建立三个工程能力：**可组合的插件式 Harness**、**按观察成本分层的 Browser Runtime**、**带归属和证据边界的 Memory**。延续前几期 Skills → Harness → Runtime → Control Plane → Evaluation 的知识图，将项目转化为可以验证的接口与实验。
+
+| 优先级 | 方向 | 项目 | 本周可核验变化 |
+| --- | --- | --- | --- |
+| P0 | Harness / Skills | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | 10/9—10/15 连续 alpha 版本，插件索引、Worktree、Session 状态 |
+| P0 | Browser Runtime | [Moli](https://github.com/lexmount/moli) | 10/11—10/12 发布 1.1.16 / 1.1.17 |
+| P0 | Memory | [Hindsight](https://github.com/vectorize-io/hindsight) | 10/13 发布 v1.0.0 |
+| P1 | Coding Agent / Control Plane | [Orca](https://github.com/stablyai/orca) | 10/10 自动化按 Run 配置模型与 effort |
+| P1 | Evidence / Developer Tooling | [REA](https://github.com/morluto/rea) | 10/11、10/14 扩展 Android 和 Evidence |
+| 安全关注 | Gateway | [LiteLLM](https://github.com/BerriAI/litellm) | 10/13 公开安全研究 |
+
+## 一、Skills / Harness：DeepSeek Harness 的插件生命周期
+
+仓库：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)；[架构文档](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md)。
+
+**做什么**：基于 Cordis 的 Everything-is-a-Plugin 设计。模型适配器、工具注册、Session Event Log、Agent Loop 等作为插件组合。Profile / Bundle 决定 Web、Headless、SDK 等入口加载的能力。
+
+**本周变化**：[10/9 alpha.2](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.2) 加入实验性 Worktree 插件、Session 插件状态与工作目录接口；[10/14 alpha.3](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.3) 强化上下文压缩、令牌脱敏与插件热更新；[10/15 alpha.4](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.4) 支持自定义插件索引、版本兼容声明和模型推理等级配置。
+
+**为什么重要**：插件有发现、安装、激活、持久状态、卸载和升级等生命周期；Agent Run 需要明确工具权限与插件副作用的边界。对可配置 Agent 平台而言，这比增加更多静态工具定义更具工程价值。
+
+**与已学项目的关系**：[cursor/plugins](https://github.com/cursor/plugins) 负责插件包分发与清单，[obra/superpowers](https://github.com/obra/superpowers) 提供工作流程，[Tencent/teamai-cli](https://github.com/Tencent/teamai-cli) 组织团队能力。DeepSeek Harness 提供这些能力进入执行循环后的运行时结构。
+
+**下一步**：阅读架构文档的 Cordis、Profile、Bundle、Session 章节；运行 Demo 并观察插件树；画出 Tool Registry、Session Store、Approval 与插件之间的依赖。项目处于 Developer Preview，实验时固定版本。
+
+## 二、Coding Agents / Control Plane：Orca 的任务运行模型
+
+仓库：[stablyai/orca](https://github.com/stablyai/orca)；[10/10 v1.4.224](https://github.com/stablyai/orca/releases/tag/v1.4.224)。
+
+**做什么**：将 Codex、Claude Code、OpenCode、Pi 等 CLI Agent 放进统一工作台，提供独立 Git Worktree、SSH、Diff Review、任务入口和移动端跟踪。
+
+**本周变化**：自动化任务支持每次 Run 单独设置模型与 effort；10/13 Android Companion 更新说明移动端主要界面可以随配对桌面端同步更新。
+
+**为什么重要**：同一 Task 可以重复执行，每次 Run 都需要记录模型、推理预算、工作区、状态和交付物。与 [paperclipai/paperclip](https://github.com/paperclipai/paperclip) 的组织目标与预算治理互补；与 [mvschwarz/openrig](https://github.com/mvschwarz/openrig) 的多 Agent 协作互补。
+
+**下一步**：设计 Task、Run、Workspace、Artifact 四个独立实体，画出 Task → Run → Worktree → Review → PR 的状态机。
+
+## 三、Runtime / Browser：Moli 的 DOM-first 设计
+
+仓库：[lexmount/moli](https://github.com/lexmount/moli)；[10/11 v1.1.16](https://github.com/lexmount/moli/releases/tag/v1.1.16)；[10/12 v1.1.17](https://github.com/lexmount/moli/releases/tag/v1.1.17)。
+
+**做什么**：Rust 实现的 Headless Browser，提供 CLI、CDP、WebDriver Classic / BiDi。常规 DOM、网络和 JS 读取走结构路径，元素坐标与截图按需触发布局和绘制。
+
+**本周变化**：增强显式交互后的页面导出、可搜索 PDF、超链接保留和浏览器兼容性。
+
+**为什么重要**：Browser Agent 的工具输出可以按成本分层，结构化读取与视觉证据采用不同执行路径。与 [mobile-next/mobile-mcp](https://github.com/mobile-next/mobile-mcp) 的设备操作接口、[NVIDIA/OpenShell](https://github.com/NVIDIA/OpenShell) 的外层策略隔离、[tester-army/e2e](https://github.com/tester-army/e2e) 的确定性回归形成互补。
+
+**下一步**：对静态页、JS 页面和交互页面，分别执行语义树提取与截图；记录延迟、内存、输出大小、成功率，形成 A/B 结果。用实测结果评估项目性能主张。
+
+## 四、Context / Memory：Hindsight v1.0 的作用域
+
+仓库：[vectorize-io/hindsight](https://github.com/vectorize-io/hindsight)；[10/13 v1.0.0](https://github.com/vectorize-io/hindsight/releases/tag/v1.0.0)。
+
+**做什么**：使用 retain、recall、reflect 管理长期记忆，Memory Bank 管理归属空间，Observations 和 Mental Models 组织知识。
+
+**本周变化**：v1.0.0 强化 Coding Agent 会话完整性、记忆注入、共享 Bank 作用域，并扩展原生 Memory Provider 集成。
+
+**为什么重要**：长期记忆需要来源、归属、时间、去重与恢复能力。与 [mksglu/context-mode](https://github.com/mksglu/context-mode) 的 Context I/O、[thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) 的会话捕获共同构成上下文与记忆层。
+
+**下一步**：设计 tenant_id、bank_id、session_id、source_event_id；测试跨项目误召回、重复写入、异常退出恢复。
+
+**Local Inference 延续**：关注 [Ollama](https://github.com/ollama/ollama)、[llama.cpp](https://github.com/ggml-org/llama.cpp)、[vLLM](https://github.com/vllm-project/vllm)。用同一 Memory Workflow 对比云端与本地模型的召回质量、耗时和成本。
+
+## 五、Provenance / Evaluation：REA 的 Evidence Contract
+
+仓库：[morluto/rea](https://github.com/morluto/rea)；[10/11 v6.4.0](https://github.com/morluto/rea/releases/tag/rea-agents-6.4.0)；[10/14 v6.5.0](https://github.com/morluto/rea/releases/tag/rea-agents-6.5.0)。
+
+**做什么**：通过 MCP / CLI 为 Agent 提供 JavaScript、Electron、Android、二进制等分析能力，输出带 Evidence ID、分析范围与限制说明的结果。
+
+**本周变化**：扩展 Android 设备检查、跨 Bundle 分析、大型 Evidence 分页读取和失败时的部分结果保留。
+
+**为什么重要**：[MCP Contract](https://github.com/morluto/rea/blob/main/docs/mcp-contracts.md) 明确 normalized_result、evidence_id、coverage、limitations 等字段。完整观察与未知覆盖是两种不同的数据状态。
+
+**与已学项目的关系**：[ifixai-ai/iFixAi](https://github.com/ifixai-ai/iFixAi) 提供独立评估思路，[tester-army/e2e](https://github.com/tester-army/e2e) 提供回归验证。REA 展示 Tool Result 如何转成可核验的执行证据。
+
+**下一步**：每次 Tool Call 记录 Run ID、Evidence Ref、Coverage、Limitations；审批和最终结果引用原始 Evidence。
+
+## 六、Gateway / Sandbox：安全与治理边界
+
+仓库：[BerriAI/litellm](https://github.com/BerriAI/litellm)；[10/13 官方安全披露](https://blog.checkpoint.com/security/check-point-research-discovers-high-risk-vulnerabilities-in-litellm-one-of-the-most-widely-used-llm-gateways/)。
+
+LiteLLM 提供统一模型 API、路由、虚拟密钥和用量管理。本周公开研究聚焦网关的授权校验与请求目标验证，涉及问题已在 1.83.9 及以上版本修复。工程启发是将服务端权限校验、密钥作用域、出站访问控制与审计记录放入网关验收。
+
+与 [Treg](https://github.com/superdesigndev/treg) 的工具凭证、[Cloudflare OS](https://github.com/cloudflare/cloudflare-os) 的审批、[OpenShell](https://github.com/NVIDIA/OpenShell) 的执行隔离形成分层控制。[OmniRoute](https://github.com/diegosouzapw/OmniRoute) 可作为配额与回退策略的对照样本。
+
+## 七、更新 Agent 工程知识图
+
+Task / Schedule → Run Config → Harness Plugin Tree → Context / Memory Bank → Gateway / Policy / Sandbox → Browser / Local Runtime → Evidence → Approval → Independent Eval / Regression。
+
+建议以 **Run ID** 串联工作区、插件状态、Memory Bank、工具授权、审批和测试报告。
+
+## 周末实践：10 月 17～18 日
+
+**周六（3 小时）**：45 分钟阅读 DeepSeek Harness 架构；60 分钟启动 Demo 并观察插件树；45 分钟参考 Orca 设计 Task / Run / Workspace TypeScript 类型；30 分钟输出插件生命周期图。交付：harness-notes.md。
+
+**周日（3 小时）**：45 分钟运行 Moli 结构提取与截图；60 分钟测试三类网页；45 分钟记录 latency、output_bytes、success、evidence_ref；30 分钟把 Evidence 关联上周 Pending Action / Approval Demo。交付：runs.jsonl 与 A/B 对比表。
+
+## 下周计划：10 月 19～23 日
+
+| 日期 | 时间 | 实践 | 交付 |
+| --- | --- | --- | --- |
+| 周一 10/19 | 40 分钟 | Plugin / Profile / Session 边界 | plugin-contract.md |
+| 周二 10/20 | 60 分钟 | Memory Bank 作用域与去重 | memory-schema.ts + 测试 |
+| 周三 10/21 | 45 分钟 | Gateway 权限与审批矩阵 | 权限检查清单 |
+| 周四 10/22 | 60 分钟 | Evidence ID / Coverage / Limitations | evidence-schema.ts |
+| 周五 10/23 | 40 分钟 | 一条确定性 E2E 回归 | 测试记录与失败日志 |
+
+**本周最小交付**：一个 TypeScript Demo，跑通 Task → Run → Tool → Policy → Evidence → Approval → Result，并验证越权拒绝、Memory Bank 隔离与结果可追溯。
