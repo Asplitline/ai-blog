@@ -1,6 +1,6 @@
 ---
 title: "Agent Engineering 学习周报 #7：Harness 自优化、代码知识图与可验证 Context"
-description: "2026-10-16 至 2026-10-23：Harness²、Graphify、Headroom、Skills 插件治理、REA 与 Orca 的工程学习材料。"
+description: "2026-10-16 至 2026-10-23：按 Skills、Harness、Context/Memory、Runtime、Control Plane、Evaluation、Developer Tooling 等能力层整理 Agent Engineering 学习材料。"
 date: "2026-10-23"
 category: "AI Engineering"
 tags:
@@ -19,94 +19,504 @@ draft: false
 
 > **统计窗口**：2026-10-16（上周五）至 2026-10-23（本周五），Asia/Shanghai。来源为 [GitHub Trending](https://github.com/trending)、[10/22 七日榜单快照](https://githubtrending.today/weekly/)及仓库 Commit。滚动七日榜单与周五到周五口径略有不同；区分「本周代码变更」「本周重新受到关注」「延续研究」。
 
-## 本周工程结论
+## 本周结论
 
-本期形成三个可实践的接口：**Harness 的版本化优化**、**代码与工具结果的证据化 Context**、**Skills/Plugins 的版本和权限治理**。
+本期不再按“项目逐个罗列”，而是按 Agent Engineering 的能力层整理。
 
-| 优先级 | 主题 | 仓库 | 学习方向 |
+本周最值得关注的变化有三条：
+
+1. **Harness 开始进入“可优化、可比较、可回滚”阶段**：不只是写 Prompt，而是把 Skills、Memory、Tool Guidance、Plugins 等都纳入版本化实验。
+2. **Context 开始从文本检索走向结构化证据**：代码 AST 图谱、可恢复压缩、来源分级逐渐成为独立工程层。
+3. **Agent 产品正在补齐可验证执行链路**：Runtime 状态、工具 Evidence、Approval、独立 Eval 开始串成闭环。
+
+## 一、Skills / Plugins：能力如何封装、分发和治理
+
+### Claude Plugins
+
+[anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official) 将 manifest、MCP、Commands、Agents、Skills 组织为可安装插件，并区分官方内部与第三方来源。
+
+**本周变化**：security-guidance 升至 [2.0.16](https://github.com/anthropics/claude-plugins-official/commit/1e25068c)，扩展 Windows 证书库异常等测试场景。
+
+**为什么重要**：Skills 正从“复制一份 Markdown”走向真正的插件治理问题：
+
+- 来源是谁
+- 当前版本是什么
+- 依赖哪些 MCP / Commands
+- 能申请什么权限
+- 更新后是否破坏旧行为
+
+**和此前项目的关系**：
+
+- [cursor/plugins](https://github.com/cursor/plugins)：插件分发
+- [Impeccable](https://github.com/pbakaus/impeccable)：Skill + 确定性检查
+- [K-Dense Scientific Skills](https://github.com/K-Dense-AI/scientific-agent-skills)：领域 Skill Catalog
+
+### Android Skills
+
+[android/skills](https://github.com/android/skills) 按模型表现薄弱的 Android 开发任务维护 SKILL.md，并支持 Android CLI 与 Agent 插件。
+
+本周 [v1.0.16](https://github.com/android/skills/commit/95ea931a1ad8f9b2be132ae0cfb2aad964d71118) 和 [Codex 插件修复](https://github.com/android/skills/commit/09a35383) 展示了跨宿主维护问题。
+
+**值得学什么**：不要只研究 Skill 内容，重点看 Skill 如何被不同 Agent 宿主加载、版本化和兼容。
+
+**本类学习优先级：P1**
+
+---
+
+## 二、Harness：Agent 行为如何被组织和持续优化
+
+### Harness²
+
+[google-research/harness2](https://github.com/google-research/harness2) 是本期最重要的 Harness 项目。
+
+它将 Agent Harness 拆成八类可编辑组件，包括：
+
+- system prompt
+- guardrails
+- memory
+- tool guidance
+- subagents
+- skills
+- scripts
+- plugins
+
+任务内通过 **Propose → Probe → Compose** 生成、试运行、组合改进；跨任务把经验写回 Improvement Harness。
+
+**为什么重要**：Harness 第一次真正变成可以做实验的工程对象，而不是散落在 system prompt、rules 和 README 里的配置。
+
+可以开始测：
+
+- 成功率
+- token 成本
+- 延迟
+- 失败类型
+- 哪个组件改变导致结果变化
+- 是否值得保留 / 回滚
+
+**和此前项目的关系**：
+
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：插件式执行
+- [OpenRig](https://github.com/mvschwarz/openrig)：多个现成 Coding Agent 的编排
+- [Superpowers](https://github.com/obra/superpowers)：人工设计的工程流程 Skill
+
+Harness² 更接近：**如何根据执行证据持续优化整个 Harness**。
+
+**下一步**：固定模型和任务集，只改变 Harness Version，比较结果。
+
+**本类学习优先级：P0**
+
+---
+
+## 三、Context / Knowledge / Memory：Agent 到底看到什么
+
+这一层建议继续拆成三个不同问题：
+
+- Context Retrieval：去哪找
+- Context I/O：什么能进入模型
+- Memory：什么跨任务保留
+
+### Graphify：代码结构 Context
+
+[Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) 使用 tree-sitter AST 提取导入、调用、继承等关系，建立可查询代码图。
+
+关系边会区分：
+
+- EXTRACTED：直接从代码提取
+- INFERRED：推断得到
+
+并支持 query、path、explain。
+
+**本周变化**：10/21–22 的提交改进 SQL 表跨文件合并、T-SQL 解析、MCP 模糊查询和跨仓库调用证据定位。
+
+[SQL 修复](https://github.com/Graphify-Labs/graphify/commit/b8d9f123) · [MCP 修复](https://github.com/Graphify-Labs/graphify/commit/c6d4c251) · [跨仓库定位](https://github.com/Graphify-Labs/graphify/commit/775ddb9d)
+
+**为什么重要**：Coding Agent 不再只是全文搜索，而是可以围绕“API → Hook → Component”这样的结构关系取上下文。
+
+**和此前项目的关系**：
+
+- [PageIndex](https://github.com/VectifyAI/PageIndex)：长文档结构检索
+- [code-graph-rag](https://github.com/vitali87/code-graph-rag)：代码图谱
+- [Hindsight](https://github.com/vectorize-io/hindsight)：长期学习记忆
+
+Graphify 更偏 **代码结构知识图 + 来源解释**。
+
+### Headroom：Context I/O 压缩
+
+[headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom) 压缩日志、JSON、源码和 RAG 内容，并通过 CCR 在本地保留原文，必要时恢复。
+
+本周 [10/17 Turn Hook](https://github.com/headroomlabs-ai/headroom/commit/fbf7bc32) 支持 OpenAI Responses HTTP/WebSocket 请求改写；[10/16 计量提交](https://github.com/headroomlabs-ai/headroom/commit/2912b7b6) 开始记录每请求节省量。
+
+**为什么重要**：Context Engineering 开始具备明确指标：
+
+- token 节省
+- latency
+- 关键错误行保留率
+- recovery 次数
+- 最终任务成功率
+
+**和此前项目的关系**：
+
+- [context-mode](https://github.com/mksglu/context-mode)：过滤工具输出
+- Headroom：压缩并支持恢复
+- Hindsight：长期记忆
+
+三者不是同一种能力。
+
+**本类学习优先级：P0 / P1**
+
+---
+
+## 四、Runtime / Execution：Agent 如何真正执行任务
+
+### Orca
+
+[stablyai/orca](https://github.com/stablyai/orca) 提供 Coding Agent 的 Task、Run、Worktree 与 Review。
+
+本周继续修复：
+
+- [Session Resume](https://github.com/stablyai/orca/commit/f0450469)
+- [审批状态](https://github.com/stablyai/orca/commit/1ac2c6a8)
+- [Workspace 休眠](https://github.com/stablyai/orca/commit/41661e33)
+
+真正值得研究的是状态机：
+
+```text
+queued
+→ running
+→ waiting_approval
+→ resumed
+→ completed
+```
+
+以及 workspace 的 sleeping / resume。
+
+**为什么重要**：Agent 平台做大以后，最先出问题的往往不是模型，而是任务状态恢复、审批中断、事件顺序和重试。
+
+### Ruflo
+
+[ruvnet/ruflo](https://github.com/ruvnet/ruflo) 本周扩展 [逆向分析插件](https://github.com/ruvnet/ruflo/commit/1b319145)，并补充 [安全修复](https://github.com/ruvnet/ruflo/commit/92731bc6)。
+
+这里更值得关注的是：通用 Harness 接入高权限领域工具后，Runtime 必须同时考虑：
+
+- permission
+- sandbox
+- budget
+- result trust
+- audit
+
+**和此前项目的关系**：
+
+- OpenShell：执行隔离
+- BrowserSkill / Mobile MCP：浏览器和移动设备 Runtime
+- Coder：开发环境 Runtime
+- Orca：Coding Agent Run 生命周期
+
+**本类学习优先级：P1**
+
+---
+
+## 五、Control Plane / Approval：任务如何被治理
+
+本周没有出现一个完全新的大型 Control Plane，但已有项目之间的边界更加清晰。
+
+继续使用以下知识图：
+
+- [Paperclip](https://github.com/paperclipai/paperclip)：组织、目标、预算、治理
+- Google AX：Agent Workload 调度
+- Cloudflare OS：Capability + Simulation + Async Approval
+- OpenRig：本地多 Coding Agent Team 编排
+- Orca：单个 Run / Workspace 状态
+
+可以把它们理解成不同层：
+
+```text
+Organization / Goal
+        ↓
+Task Scheduling
+        ↓
+Run Lifecycle
+        ↓
+Permission / Approval
+        ↓
+Tool Execution
+```
+
+**本周建议**：不再新增 Control Plane 项目，先把这几个系统的职责边界画清楚。
+
+**本类学习优先级：P1**
+
+---
+
+## 六、Evaluation / Evidence / Provenance：结果如何被证明
+
+### REA
+
+[morluto/rea](https://github.com/morluto/rea) 通过 MCP / CLI 暴露 JavaScript、Android 和原生程序分析，并明确返回：
+
+- Evidence
+- Coverage
+- Limitations
+
+本周改进 [不可变证据读取](https://github.com/morluto/rea/commit/74ed67da) 和 [ADB 解析](https://github.com/morluto/rea/commit/15ec8e98)。
+
+**为什么重要**：Agent 输出不应该只有“我认为修好了”，而应该附带可验证证据。
+
+例如：
+
+```text
+Finding
+→ Evidence Ref
+→ Coverage
+→ Limitation
+→ Independent Check
+```
+
+**和此前项目的关系**：
+
+- [Atlas](https://github.com/pacifio/atlas)：Session → Git Commit Provenance
+- Cloudflare Security Audit Skill：独立验证
+- [iFixAi](https://github.com/ifixai-ai/iFixAi)：Agent 黑盒审计
+- [tester-army/e2e](https://github.com/tester-army/e2e)：Agent 探索 → 确定性回归
+- REA：工具执行证据
+
+这几类项目共同构成 Agent 的 **Verification Layer**。
+
+**本类学习优先级：P0**
+
+---
+
+## 七、Gateway：模型、工具与策略如何统一接入
+
+本周 Gateway 没有出现必须新增的 P0 项目，重点继续巩固现有分类。
+
+### Model Gateway
+
+- [LiteLLM](https://github.com/BerriAI/litellm)
+- OmniRoute
+
+负责：
+
+- provider routing
+- fallback
+- quota
+- token / cost
+- provider abstraction
+
+### Tool Gateway
+
+- [Treg](https://github.com/superdesigndev/treg)
+
+负责：
+
+- tool discovery
+- API Key / OAuth
+- permission
+- audit
+- bundles
+
+### Policy / Capability Gateway
+
+- OpenShell
+- Cloudflare OS Gatekeeper
+
+负责：
+
+- capability permission
+- secret injection
+- approval
+- policy verification
+
+不要再把“Gateway”理解成一个单独产品类别，而是三类不同 Gateway。
+
+**本类学习优先级：P2，本周以架构梳理为主。**
+
+---
+
+## 八、Local Inference：本地模型执行层
+
+本周没有出现足以改变现有判断的新项目。
+
+继续保留：
+
+- [llama.cpp](https://github.com/ggml-org/llama.cpp)
+- [Ollama](https://github.com/ollama/ollama)
+- [vLLM](https://github.com/vllm-project/vllm)
+- Magnitude
+- llmfit
+
+现阶段不建议把大量时间投入“再研究一个本地推理框架”。
+
+更值得做的是：
+
+```text
+Agent Task
+→ Model Router
+→ Local / Cloud Model
+→ Quality / Latency / Cost
+```
+
+把 Local Inference 当作 Agent Runtime 的一个可替换 Provider。
+
+**本类学习优先级：P2**
+
+---
+
+## 九、Developer Tooling：让已有软件变成 Agent 可调用能力
+
+[HKUDS/CLI-Anything](https://github.com/HKUDS/CLI-Anything) 本周继续出现在榜单，延续“把现有软件封装成 Agent 可调用 CLI”的方向。
+
+这条路线和近期的几个项目可以放在一起：
+
+- CLI-Anything：软件 → CLI
+- BrowserSkill：浏览器 → Agent Runtime
+- Mobile MCP：手机 → Agent Runtime
+- Univer：Office → Agent Runtime
+
+共同趋势是：
+
+> 不一定重新做一个 AI App，而是把成熟软件的已有能力重新暴露成 Agent 可调用接口。
+
+**本类学习优先级：P2**
+
+---
+
+## 十、本周知识图
+
+```text
+Agent Engineering
+├─ Skills / Plugins
+│  ├─ Claude Plugins
+│  ├─ Android Skills
+│  ├─ Cursor Plugins
+│  └─ Impeccable
+│
+├─ Harness
+│  ├─ Harness²
+│  ├─ DeepSeek Harness
+│  ├─ Superpowers
+│  └─ OpenRig
+│
+├─ Context / Knowledge / Memory
+│  ├─ Graphify
+│  ├─ PageIndex
+│  ├─ context-mode
+│  ├─ Headroom
+│  └─ Hindsight
+│
+├─ Runtime / Execution
+│  ├─ Orca
+│  ├─ OpenShell
+│  ├─ BrowserSkill
+│  ├─ Mobile MCP
+│  └─ Coder
+│
+├─ Control Plane
+│  ├─ Paperclip
+│  ├─ Google AX
+│  ├─ Cloudflare OS
+│  └─ OpenRig
+│
+├─ Gateway
+│  ├─ Model Gateway: LiteLLM / OmniRoute
+│  ├─ Tool Gateway: Treg
+│  └─ Policy Gateway: OpenShell / Gatekeeper
+│
+├─ Evaluation / Evidence / Provenance
+│  ├─ REA
+│  ├─ Atlas
+│  ├─ iFixAi
+│  ├─ tester-army/e2e
+│  └─ Security Audit Skill
+│
+├─ Local Inference
+│  ├─ llama.cpp
+│  ├─ Ollama
+│  ├─ vLLM
+│  ├─ Magnitude
+│  └─ llmfit
+│
+└─ Developer Tooling
+   ├─ CLI-Anything
+   ├─ Univer
+   └─ Agent-Native Apps
+```
+
+---
+
+## 十一、周末实践：10 月 24–25 日
+
+### 周六：Context + Evidence
+
+**目标**：回答“Agent 为什么得到这个结论”。
+
+1. 45 分钟：阅读 Graphify 的 AST 与来源标签
+2. 60 分钟：在 React 项目追踪 3 个 API → Hook → UI 问题
+3. 45 分钟：比较原始 Context、Headroom、context-mode
+4. 30 分钟：输出 `graph-evidence.json` 和 `context-ab.md`
+
+验收标准：
+
+- 每个结论有源文件位置
+- EXTRACTED / INFERRED 可区分
+- 压缩后关键错误信息没有丢失
+- token / latency 可比较
+
+### 周日：Harness + Runtime + Evaluation
+
+**目标**：回答“Agent 这次运行为什么成功或失败”。
+
+1. 45 分钟：运行 Harness² Demo
+2. 60 分钟：同任务比较两个 Harness Version
+3. 45 分钟：加入 Evidence Ref / Coverage / Limitations
+4. 30 分钟：加入 Pending Approval 和 Run State
+
+最终输出：
+
+- `runs.jsonl`
+- `harness-diff.md`
+- `evidence.json`
+
+验收标准：
+
+- Run 可重放
+- Harness Version 可追踪
+- Approval 状态可恢复
+- 每个结果有证据
+- 成本和质量可比较
+
+---
+
+## 十二、下一周计划：10 月 26–30 日
+
+| 日期 | 分类 | 任务 | 交付 |
 | --- | --- | --- | --- |
-| P0 | Harness / Evaluation | [Harness²](https://github.com/google-research/harness2) | Propose → Probe → Compose |
-| P0 | Context / Provenance | [Graphify](https://github.com/Graphify-Labs/graphify) | AST 图谱、来源分级 |
-| P0 | Context / Gateway | [Headroom](https://github.com/headroomlabs-ai/headroom) | 可恢复压缩、真实节省量 |
-| P1 | Skills / Plugin | [Claude Plugins](https://github.com/anthropics/claude-plugins-official)、[Android Skills](https://github.com/android/skills) | 分发、版本、领域测试 |
-| P1 | Runtime / Evidence | [REA](https://github.com/morluto/rea)、[Orca](https://github.com/stablyai/orca) | 工具证据与 Run 状态机 |
+| 10/26 周一 | Harness | Harness Version / Probe / Run Config | harness-contract.ts |
+| 10/27 周二 | Context | AST 图谱检索与来源分级 | graph-evidence.json |
+| 10/28 周三 | Context I/O | Headroom / context-mode A/B | context-benchmark.md |
+| 10/29 周四 | Skills / Plugin | Manifest、权限、版本锁定 | plugin-policy.md |
+| 10/30 周五 | Evaluation | Run → Evidence → Approval → Eval | runs.jsonl |
 
-## 一、Harness / Evaluation：Harness²
+### 本周最小交付
 
-**做什么**：[google-research/harness2](https://github.com/google-research/harness2) 将 system prompt、guardrails、memory、tool guidance、subagents、skills、scripts、plugins 定义为八类可编辑 Harness 组件。任务内用 Propose → Probe → Compose 生成、试运行和组合改进；跨任务将证据和改进策略写入 Improvement Harness。模型权重保持固定。
+一个可本地运行的 TypeScript Agent Run Demo：
 
-**本周变化**：项目源码在 10 月上旬公开，10/20 再次受到技术社区关注。本期属于「新进入学习重点」，而非本周首次发布。README 中的 benchmark 增益来自作者实验，需要独立任务集复核。
+```text
+Task
+→ Harness Version
+→ Context Retrieval
+→ Model / Tool Gateway
+→ Runtime
+→ Evidence
+→ Approval
+→ Evaluation
+```
 
-**为什么重要**：Harness 改进可以用质量、成本、耗时、失败率和回滚结果衡量，覆盖工具选择、上下文、技能和插件配置。
+要求：
 
-**此前项目关联**：[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 研究插件式执行，[OpenRig](https://github.com/mvschwarz/openrig) 组织现成 Coding Agent，[Superpowers](https://github.com/obra/superpowers) 提供人工设计的流程 Skill。Harness² 补上基于执行证据优化这些配置的方法。
+- 可切换 Harness Version
+- 可追踪 Context 来源
+- 可记录工具 Evidence
+- 可处理中断和审批
+- 可输出质量 / 成本 / latency 对照
 
-**学习下一步**：运行仓库的无模型凭证 Demo；固定模型和测试任务，比较两版 Harness 的成功率、token、时延和失败类型。
-
-## 二、Context / Provenance：Graphify
-
-**做什么**：[Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) 使用 tree-sitter AST 提取导入、调用、继承等关系，建立可查询的代码图。关系边标记为 EXTRACTED（直接提取）或 INFERRED（推断），支持 query、path、explain。
-
-**本周变化**：10/21–22 的 0.9.94 相关提交改进 SQL 表跨文件合并、T-SQL 解析、MCP 模糊查询及跨仓库调用证据定位。[SQL 修复](https://github.com/Graphify-Labs/graphify/commit/b8d9f123) · [MCP 修复](https://github.com/Graphify-Labs/graphify/commit/c6d4c251) · [跨仓库定位](https://github.com/Graphify-Labs/graphify/commit/775ddb9d)。
-
-**为什么重要**：Coding Agent 可通过结构化子图回答「这个 API 影响哪些页面」，并为结果提供来源位置。仓库宣称的 token 节省与正确性收益需要实测。
-
-**此前项目关联**：[PageIndex](https://github.com/VectifyAI/PageIndex) 处理长文档定位，[context-mode](https://github.com/mksglu/context-mode) 管理工具输出，[Hindsight](https://github.com/vectorize-io/hindsight) 负责跨会话记忆。Graphify 补充代码结构检索。
-
-**学习下一步**：选择现有 React 项目追踪 API → Hook → UI，对比 grep、Graphify 和 Agent 文件浏览，记录遗漏边、准确率、token 与耗时。
-
-## 三、Context I/O / Gateway：Headroom
-
-**做什么**：[headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom) 压缩日志、JSON、源码和 RAG 内容，提供 Proxy、Library、MCP 接口。CCR 在本地保留原文，支持按需恢复。
-
-**本周变化**：[10/17 Turn Hook](https://github.com/headroomlabs-ai/headroom/commit/fbf7bc32) 支持 OpenAI Responses HTTP/WebSocket 请求改写；[10/16 计量提交](https://github.com/headroomlabs-ai/headroom/commit/2912b7b6) 记录每请求的节省量；10/21 修复缓存和流状态指标。
-
-**为什么重要**：上下文压缩应同时检验 token、时延、关键错误行保留、恢复次数和任务成功率。
-
-**此前项目关联**：与 context-mode 的输出筛选、Hindsight 的长期记忆、[LiteLLM](https://github.com/BerriAI/litellm) 的模型路由分别构成 Context、Memory、Gateway 接口。
-
-**学习下一步**：用同一份混合 JSON、日志、代码输入比较原始、截断、Headroom、context-mode 四组，形成 A/B 表。
-
-## 四、Skills / Developer Tooling：官方插件和领域 Skill
-
-**Claude Plugins**：[anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official) 将 manifest、MCP、Commands、Agents、Skills 组织为可安装插件，并区分官方内部与第三方来源。本周 security-guidance 升至 [2.0.16](https://github.com/anthropics/claude-plugins-official/commit/1e25068c)，扩展 Windows 证书库异常等测试场景。值得研究名称迁移、依赖锁定、权限审查和更新兼容性。
-
-**Android Skills**：[android/skills](https://github.com/android/skills) 按模型表现薄弱的 Android 开发任务维护 SKILL.md，支持 Android CLI 与 Agent 插件。本周 [10/21 v1.0.16](https://github.com/android/skills/commit/95ea931a1ad8f9b2be132ae0cfb2aad964d71118) 和 [Codex 插件修复](https://github.com/android/skills/commit/09a35383) 展示跨宿主维护。
-
-**此前项目关联**：[cursor/plugins](https://github.com/cursor/plugins) 负责插件分发，[Impeccable](https://github.com/pbakaus/impeccable) 结合设计 Skill 与确定性检查，[K-Dense Scientific Skills](https://github.com/K-Dense-AI/scientific-agent-skills) 展示领域 Skill Catalog。建议为每个插件记录来源、版本、权限、依赖、测试样本。
-
-## 五、Coding Agents / Runtime / Control Plane / Evidence
-
-**Orca**：[stablyai/orca](https://github.com/stablyai/orca) 提供 Coding Agent 的 Task、Run、Worktree 与 Review。本周继续修复 [Session Resume](https://github.com/stablyai/orca/commit/f0450469)、[审批状态](https://github.com/stablyai/orca/commit/1ac2c6a8)、[Workspace 休眠](https://github.com/stablyai/orca/commit/41661e33)。核心学习点是 waiting approval、resuming、completed、sleeping 的状态转换及事件顺序，与 [Paperclip](https://github.com/paperclipai/paperclip) 的组织治理互补。
-
-**REA**：[morluto/rea](https://github.com/morluto/rea) 通过 MCP/CLI 暴露 JavaScript、Android、原生程序分析，返回 Evidence、Coverage 和 Limitations。本周改进 [不可变证据读取](https://github.com/morluto/rea/commit/74ed67da) 和 [ADB 解析](https://github.com/morluto/rea/commit/15ec8e98)。可衔接 [iFixAi](https://github.com/ifixai-ai/iFixAi) 的独立审计与 [tester-army/e2e](https://github.com/tester-army/e2e) 的确定性回归。
-
-**Ruflo**：[ruvnet/ruflo](https://github.com/ruvnet/ruflo) 10/22 扩展 [逆向分析插件](https://github.com/ruvnet/ruflo/commit/1b319145)，并补充 [安全修复](https://github.com/ruvnet/ruflo/commit/92731bc6)。通用 Harness 集成领域工具时，优先评估权限、结果可信度与执行预算。
-
-## 六、持续跟踪：Agent-native CLI、Local Inference、Gateway
-
-[HKUDS/CLI-Anything](https://github.com/HKUDS/CLI-Anything) 本周出现在七日榜单，延续「将现有软件封装成 Agent 可调用 CLI」方向；本次未核实到窗口内新增功能提交，保持 P2。[ai-memory](https://github.com/akitaonrails/ai-memory) 的跨 Agent Handoff 继续与 Hindsight 做对照。
-
-Local Inference 保留 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[Ollama](https://github.com/ollama/ollama)、[vLLM](https://github.com/vllm-project/vllm) 作为推理后端实验组。Gateway / Sandbox 继续比较 LiteLLM 的路由、[OpenShell](https://github.com/NVIDIA/OpenShell) 的隔离与 [Cloudflare OS](https://github.com/cloudflare/cloudflare-os) 的能力审批。
-
-推荐的工程链路：Task → Run Config / Harness Version → Context Graph / Memory → Gateway / Policy → Tool Evidence → Approval → Independent Eval / Regression。使用 Run ID 串联证据和结果。
-
-## 七、周末实践：10 月 24–25 日
-
-**周六（3 小时）**：45 分钟阅读 Graphify AST 和来源标签；60 分钟在 React 项目追踪三个 API 影响范围问题；45 分钟做 Context 压缩 A/B；30 分钟输出 graph-evidence.json、context-ab.md。验收：定位结果附源文件位置，错误和遗漏可复现。
-
-**周日（3 小时）**：45 分钟运行 Harness² Demo；60 分钟比较两版 Harness 的同任务执行；45 分钟接入 Evidence Ref / Coverage / Limitations 和 Pending Approval；30 分钟输出 runs.jsonl、harness-diff.md。验收：任务可重放，审批状态可追溯，质量与成本有对照。
-
-## 八、下周计划：10 月 26–30 日
-
-| 日期 | 时间 | 任务 | 交付 |
-| --- | --- | --- | --- |
-| 10/26 周一 | 45 分钟 | Harness Version / Probe / Run Config | harness-contract.ts |
-| 10/27 周二 | 60 分钟 | AST 图谱检索与证据分级 | graph-evidence.json |
-| 10/28 周三 | 45 分钟 | Context 压缩 A/B | context-benchmark.md |
-| 10/29 周四 | 60 分钟 | Plugin Manifest、权限、版本锁定 | plugin-policy.md |
-| 10/30 周五 | 45 分钟 | Run → Evidence → Approval → Eval 回归 | runs.jsonl |
-
-**最小交付**：一个可本地运行的 TypeScript Agent Run Demo，可切换 Harness 版本、追溯 Context、记录工具证据、处理审批，并导出质量与成本对照报告。
-
-历史衔接：[第 #5 期](https://github.com/Asplitline/ai-blog/blob/main/content/posts/agent-engineering-weekly-2026-10-02.mdx) · [第 #6 期（独立分支）](https://github.com/Asplitline/ai-blog/blob/blog/agent-engineering-weekly-2026-10-09-review/content/posts/agent-engineering-weekly-2026-10-09.mdx)。
+历史衔接：[第 #5 期](https://github.com/Asplitline/ai-blog/blob/main/content/posts/agent-engineering-weekly-2026-10-02.mdx) · [第 #6 期](https://github.com/Asplitline/ai-blog/blob/blog/agent-engineering-weekly-2026-10-09-review/content/posts/agent-engineering-weekly-2026-10-09.mdx)。
