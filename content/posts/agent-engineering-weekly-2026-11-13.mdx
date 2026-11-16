@@ -1,0 +1,162 @@
+---
+title: "Agent Engineering 学习周报 #8：Agent 执行环境、隔离与可验证质量"
+description: "2026-11-06 至 2026-11-13：从 GitHub Agent 工程仓库中提炼浏览器/桌面 Runtime、并行工作树、语义上下文及 Web 技能质量体系。"
+date: "2026-11-13"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Skills
+  - Harness
+  - Runtime
+  - Sandbox
+  - Context Engineering
+  - Evaluation
+  - Developer Tooling
+  - Weekly Review
+draft: false
+---
+
+> **统计窗口**：2026-11-06 至 2026-11-13（周五至周五，Asia/Shanghai，截止 11 月 13 日 23:59）。本期以 GitHub [Trending](https://github.com/trending) 为发现入口，使用具体仓库 README、GitHub Commit 记录作为事实依据。GitHub Trending 为动态榜单，仓库上榜与提交日期是两种指标；下文将“周期内确认提交”“持续值得学习”“学习延续”分别标记。部分 GitHub Commit 的 UTC 日期在北京时间可能落入相邻日，应以原始时间戳核对。
+
+## 本周判断
+
+1. **Runtime 竞争正在向可恢复操作靠近**：浏览器/桌面 Agent 要解决的是元素定位、动作验证、沙箱生命周期、环境隔离和用户授权。
+2. **Skills 的价值逐步延伸到质量保证**：来自浏览器厂商的 Web 开发指导把最佳实践、静态分析和评测连接起来。
+3. **Context 的重点是语义和来源可信度**：Agent 访问企业数据时，业务定义、跨 Schema 关系和引用来源直接影响结果质量。
+
+这些判断是对公开代码变化的工程解读，并非项目方声明的行业结论。
+
+## 一、Runtime / Browser / Desktop：操作与恢复
+
+### [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) · 9.4/10 · P0
+
+**作用与原理**：面向 Agent 的 Rust CLI。通过 `snapshot` 将页面变成带 ref 的简短可访问性结构，Agent 再通过 ref 执行操作，并二次读取页面确认变化。可与 TypeScript/Node Agent Loop 配合。
+
+**本周可核实变更**：
+- [修复滚动后点击坐标：2f533ec7](https://github.com/vercel-labs/agent-browser/commit/2f533ec7)（11/13 UTC）
+- [修复异常停止后临时浏览器 Profile 遗留：d6e92bef](https://github.com/vercel-labs/agent-browser/commit/d6e92bef)（11/13 UTC）
+- [为 Vercel Skill 加入 feature flag 覆盖：4720bc3d](https://github.com/vercel-labs/agent-browser/commit/4720bc3d)（11/13 UTC）
+
+**学习重点**：页面状态快照、locator/ref 失效、动作前后验证、重试策略、独立浏览器会话。实践时记录每次工具调用的 input、snapshot 摘要、耗时与失败原因。
+
+### [vercel-labs/agent-desktop](https://github.com/vercel-labs/agent-desktop) · 9.0/10 · P1
+
+**作用与原理**：通过 macOS / Windows / Linux 的无障碍树读写桌面 UI；模型执行循环由上层 Agent 控制。桌面应用操作引入宿主权限、虚拟机/沙箱与敏感信息保护问题。
+
+**本周可核实变更**：
+- [macOS 客户机通信从 SSH 转向 guest agent：46d2adf8](https://github.com/vercel-labs/agent-desktop/commit/46d2adf8)
+- [约束 host key 写入与探测响应：2a63c28b](https://github.com/vercel-labs/agent-desktop/commit/2a63c28b)
+- [避免启动器退出导致沙箱停止：2f650705](https://github.com/vercel-labs/agent-desktop/commit/2f650705)
+
+**学习重点**：Host/Guest 边界、最小权限、沙箱启动和清理、剪贴板/截图的隐私治理。先在测试应用中实验。
+
+## 二、Harness / Sandbox：并行执行和人工控制
+
+### [max-sixty/worktrunk](https://github.com/max-sixty/worktrunk) · 9.1/10 · P0
+
+**作用**：管理 Git worktree，为不同 Coding Agent 任务提供独立分支、工作目录和生命周期操作，避免并行修改互相污染。
+
+**本周可核实变更**：
+- [修正含点号分支名导致变量状态串扰：da09f170](https://github.com/max-sixty/worktrunk/commit/da09f170)
+- [记录 Claude Desktop 跳过 worktree hooks 的行为：04ad9620](https://github.com/max-sixty/worktrunk/commit/04ad9620)
+
+**学习重点**：分支隔离、环境变量作用域、工作树生命周期，以及不同 Agent 宿主对 hooks 的兼容性。适合衔接此前学习的 [obra/superpowers](https://github.com/obra/superpowers) 和 Agent Harness 设计。
+
+### [stablyai/orca](https://github.com/stablyai/orca) · 8.5/10 · P1
+
+**本周可核实变更**：[桌面恢复窗口前请求用户许可：513aef5e](https://github.com/stablyai/orca/commit/513aef5e)；[浏览器点击弹窗时避免抢占用户焦点：34d9d372](https://github.com/stablyai/orca/commit/34d9d372)。
+
+**学习重点**：工具与真实用户争夺 UI 控制权时的交互协议；重试授权应被视为可审计事件。尤其适合做 Agent 产品中的审批卡片和操作回放。
+
+## 三、Context / Knowledge：语义定义与来源
+
+### [NVIDIA/auto-ontology](https://github.com/NVIDIA/auto-ontology) · 8.7/10 · P1
+
+**作用与原理**：通过企业数据元信息构建语义目录、关系和业务定义，让 Agent 能理解指标口径、数据位置、血缘与可信来源，并通过 MCP、CLI、API 提供上下文。
+
+**本周可核实变更**：
+- [读取 PostgreSQL pg_constraint 中外键：3366ece1](https://github.com/NVIDIA/auto-ontology/commit/3366ece1)
+- [上报跨 Schema 外键关联：c3dc30d9](https://github.com/NVIDIA/auto-ontology/commit/c3dc30d9)
+- [补充跨 Schema 外键回归基线：8d477021](https://github.com/NVIDIA/auto-ontology/commit/8d477021)
+
+**学习重点**：为什么仅有 RAG 文本召回不够；语义层如何帮助 text-to-SQL 校验字段、关系、指标口径。可使用自己的 MySQL/Prisma 数据模型做小规模对照实验。
+
+## 四、Skills / Developer Tooling：Agent 生成代码的质量标准
+
+### [GoogleChrome/modern-web-guidance-src](https://github.com/GoogleChrome/modern-web-guidance-src) · 9.3/10 · P0
+
+**作用**：为 Coding Agent 提供现代 Web API、浏览器兼容性和最佳实践指导，并通过扫描与评测验证指导效果。
+
+**本周可核实变更**：
+- [新增 JS 纪律指南、日常评测和 11 条分析规则：ebb6f3aa](https://github.com/GoogleChrome/modern-web-guidance-src/commit/ebb6f3aa)
+- [使用 TypeScript AST 提取 Lit CSS 模板：607312c2](https://github.com/GoogleChrome/modern-web-guidance-src/commit/607312c2)
+- [扩展 SCSS 扫描能力：562b5335](https://github.com/GoogleChrome/modern-web-guidance-src/commit/562b5335)
+
+**学习重点**：把团队规范写成可检索的 Skills，再用静态检查与 Eval 检测 Agent 生成页面的质量。与此前 UI Skill、页面生成指南和组件复用工作直接关联。
+
+### [anthropics/skills](https://github.com/anthropics/skills) · 9.1/10 · P1
+
+**持续值得学习**：了解技能目录、渐进式资源加载及跨宿主复用。本周证实有 [Office Skills 许可证调整：2c5958ec](https://github.com/anthropics/skills/commit/2c5958ec)（11/06 UTC）；这是一项仓库治理变化，可作为依赖引入与 License 审查练习，不应被描述为 Skills 核心架构升级。
+
+### [meta/astryx](https://github.com/meta/astryx) · 8.0/10 · P2
+
+**作用**：React 19 设计系统，提供组件、主题及 Agent 可使用的配套工具。
+
+**本周可核实变更**：[CLI 最佳实践内容格式调整：4beeb8a3](https://github.com/meta/astryx/commit/4beeb8a3)；[长链接文本换行修复：86bb9555](https://github.com/meta/astryx/commit/86bb9555)。
+
+**学习重点**：组件设计系统如何向 Agent 提供可靠的使用说明与约束；建议作为页面设计知识参考。
+
+## 五、Evaluation / Security：证据化交付
+
+### [openai/codex-security](https://github.com/openai/codex-security) · 8.8/10 · P1
+
+**作用**：扫描、验证并修复代码安全问题，保留发现证据并支持 CLI / TypeScript SDK / CI 工作流。
+
+**本周可核实变更**：
+- [澄清 Deep Scan 运行前的沙箱限制：f26b669b](https://github.com/openai/codex-security/commit/f26b669b)
+- [新增合成安全工作流基准：462bad3d](https://github.com/openai/codex-security/commit/462bad3d)
+- [扩展第三方扫描结果导入：4822a9cb](https://github.com/openai/codex-security/commit/4822a9cb)
+
+**学习重点**：报告中的证据、扫描覆盖范围、重复发现消除、修复后验证。可把这一思路延伸到普通 Agent 输出的可验证性设计。
+
+### [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) · 8.3/10 · P2
+
+**持续值得学习**：多阶段安全审查与结构化产出。此次核查在指定窗口内未发现该仓库提交，因此列为延续研究，避免误标本周更新。
+
+## 六、与前期周报的知识衔接
+
+此前 [周报 #7](https://github.com/Asplitline/ai-blog/blob/main/content/posts/agent-engineering-weekly-2026-10-16.mdx) 将重点放在 **Harness 优化、结构化 Context 和可验证执行**。本期更接近工程实现：
+
+| 前期能力 | 本期可落地环节 | 验收问题 |
+| --- | --- | --- |
+| Skills/Plugins 版本治理 | modern-web-guidance + Skills | 指南更新之后能否检测生成结果质量？ |
+| Harness 与实验 | worktrunk 的工作树隔离 | 两个 Agent 是否能并行修改并单独回滚？ |
+| Runtime / Approval | agent-browser、agent-desktop、Orca | 失败动作可否恢复？危险重试是否可审批？ |
+| Context 的来源分级 | Auto Ontology | 查询是否能追溯指标定义和表关联？ |
+| Evaluation | Codex Security | 结果是否携带证据、覆盖边界和复验记录？ |
+
+### 本期弱覆盖项
+
+**Gateway、Local Inference、长期 Memory**：本次重点核查的仓库中缺乏足够明确、与用户学习目标高度相关的周内证据，因此保持此前学习线索，不编造新进展。下一期继续检查模型路由、推理成本、跨会话记忆与检索准确率。
+
+## 七、周末学习计划（11/14–11/15 对应本统计周）
+
+> 这是对本统计周期配套的学习方案；手动补跑日期为 11 月 16 日，以下活动也可顺延到下一周末。
+
+| 时间 | 任务 | 可验收交付 |
+| --- | --- | --- |
+| 周六 09:00–10:30 | 读 agent-browser README / CLI 命令及 11/13 提交 | 整理 snapshot → action → verify 时序图 |
+| 周六 10:45–12:00 | 运行浏览器 CLI，访问公开测试页面 | 保存操作日志和失败处理记录 |
+| 周六 14:00–15:30 | 用 worktrunk / Git worktree 创建两条并行任务分支 | 两个独立工作目录 + 清理脚本 |
+| 周日 09:00–11:00 | 用 Next.js + shadcn/ui 做 Agent 执行页 | 任务状态、步骤、工具结果和审批卡 |
+| 周日 14:00–15:00 | 接入 modern-web-guidance 扫描及简单 Eval | 5 条可复验质量检查项 |
+
+**下周学习任务**：补全持久化执行日志（Prisma + MySQL）、任务重试状态机和 Screenshot/DOM Evidence 的数据结构；为每次操作保存输入、前置状态、结果、错误和审批状态。优先完成可测试的端到端链路。
+
+## 资料核验与边界
+
+- **仓库事实**：项目定位基于各项目 README；提交证据链接指向 GitHub 原始 Commit。所列具体提交已在上述统计窗口的 GitHub 历史查询中核验。
+- **学习评分**：基于从 React/Next.js 向 Agent 产品工程过渡的实用价值判断，非 Trending 官方评分。
+- **Trending 排名**：动态榜单无法用当前页面严格重建指定历史周内全部名次，本期不提供未经确认的历史名次或 Star 增量。
+- **下一期回顾**：复核当前文章的实战进度，区分持续项目与新增项目；按能力层更新，不重复堆放仓库清单。
