@@ -1,0 +1,456 @@
+---
+title: "AI Agent 演进史：从 Workflow、Agentic 到 Proactive，为什么 2026 年的焦点是 Harness？"
+description: "系统梳理 LLM、Workflow、Agentic、Multi-Agent、Proactive Agent 与 Agent Harness 的关系：每次架构升级解决什么问题、引入哪些新挑战，以及 2026 年 Agent 工程的核心实践。"
+date: "2026-11-20"
+category: "AI Engineering"
+tags:
+  - Agent
+  - Workflow
+  - Agentic
+  - Proactive Agent
+  - Agent Harness
+  - Multi-Agent
+  - Context Engineering
+draft: false
+---
+
+# AI Agent 演进史：从 Workflow、Agentic 到 Proactive，为什么 2026 年的焦点是 Harness？
+
+> **核心观点：Agent 的进化，是把更多的执行决策、任务发起权和长期工作能力交给 AI，同时把可靠性、权限、验证与可恢复性变成系统工程问题。**
+>
+> 本文梳理截至 **2026 年 11 月 20 日** 的技术进展。「阶段」是帮助理解架构的能力模型，并非行业统一分期，也不意味着后一个阶段取代前一个阶段。
+
+## 一、先建立完整的认知框架
+
+把 Agent 的发展简单描述成「Workflow → Agentic → Proactive」很有启发性，但容易混淆三种不同的维度：
+
+1. **执行路径由谁决定？** Workflow 的路径主要由代码定义；Agentic 系统允许模型动态选择工具和下一步行动。
+2. **任务由谁发起？** 响应式 Agent 通常等待用户输入；Proactive Agent 结合目标、事件和环境变化判断何时介入。
+3. **任务如何可靠地运行？** Harness 负责模型之外的工具环境、上下文、权限、状态、验证、恢复与观测。
+
+此外，**Multi-Agent 是协作方式**，可以服务于响应式或主动式系统；它并非所有 Agent 都必须经历的下一阶段。
+
+| 架构/能力 | 核心问题 | 典型机制 | 代价与风险 |
+| --- | --- | --- | --- |
+| LLM / Chatbot | 如何理解需求、生成答案 | Prompt → Model → Response | 外部执行能力有限 |
+| Workflow | 如何把固定业务步骤自动化 | DAG、条件分支、模型节点、API 节点 | 分支和例外增多时维护困难 |
+| Agentic Agent | 如何处理步骤未知的开放任务 | 规划—行动—观察循环、工具调用 | 循环失控、错误累积、成本与上下文压力 |
+| Multi-Agent | 如何分工处理复杂任务 | 主 Agent、Subagents、并行与汇总 | 协作开销、状态同步和冲突 |
+| Proactive Agent | 如何在合适时机主动推进目标 | 长期目标、事件监听、触发决策、通知和授权 | 误触发、打扰、权限越界 |
+| Harness / Long-Running | 如何让 Agent 长时间可靠工作 | 沙箱、记忆、检查点、验证、恢复、追踪 | 工程复杂度和基础设施成本 |
+
+**更准确的视图是：Workflow 与 Agentic 属于执行编排，Multi-Agent 属于协作组织，Proactive 属于任务发起机制，Harness 属于运行和可靠性基础设施。**
+
+## 二、LLM / Chatbot：从信息检索到自然语言理解
+
+### 它解决了什么？
+
+2022 年底，ChatGPT 使通用大模型的对话能力进入主流产品。用户开始能够用自然语言完成信息整理、内容生成和复杂问题解释。
+
+最简单的系统可以写成：
+
+```text
+用户输入 → LLM 推理 → 文本回答
+```
+
+这种模式解决「让机器理解我的意思」的问题，却很难单独交付真实业务结果：查询最新资料、调用业务 API、更新数据库、修改仓库代码、检查执行结果，都需要额外的系统能力。
+
+### 为什么出现 Workflow？
+
+业务任务往往由明确的多个步骤组成。以一篇 AI 学习周报为例，需要抓取项目、筛选、分析、成文、提交仓库。让用户逐次提问，操作成本很高。因此，开发者开始将多个 LLM 和工具调用串成流程。
+
+## 三、Workflow：把多步工作变成可执行流程
+
+### 解决的问题：重复任务的流程自动化
+
+典型工作流：
+
+```text
+Cron 触发
+  ↓
+GitHub Trending / RSS
+  ↓
+数据清洗与去重
+  ↓
+LLM 分类、摘要和评分
+  ↓
+生成 Markdown / MDX
+  ↓
+提交 PR → 人工审核
+```
+
+技术上通常使用固定步骤、条件分支、并行节点、重试策略与失败处理。代表性工具有 Dify、n8n 和各类 LLM workflow 编排框架。
+
+Anthropic 在 2024 年 12 月的 [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) 中，将 **Workflow** 定义为模型和工具按照预定义代码路径完成工作，将 **Agent** 定义为模型能够动态决定自身流程与工具使用的系统。文章还归纳了 Prompt Chaining、Routing、Parallelization、Orchestrator-Workers 和 Evaluator-Optimizer 等模式。
+
+### Workflow 的优势
+
+- **可预测**：流程、分支和权限可以由开发者显式配置。
+- **易验证**：每个节点拥有相对明确的输入输出。
+- **易控成本**：模型调用次数、超时、重试次数有清晰边界。
+- **适合生产**：固定报表、审批、同步、定期摘要、稳定的数据处理任务。
+
+### 它遇到了什么瓶颈？
+
+用户说：「帮我运行这个陌生的开源项目，找到 Bug 并修好。」仓库可能使用 Python、Node.js 或 Rust，依赖 Docker、数据库或远程服务，错误路径无法提前穷举。
+
+开发者每增加一种环境和故障，就需要更多流程分支。**当任务步骤需要在运行时根据新证据不断变化，预定义编排的成本迅速上升。**
+
+这推动了 Agentic Agent 的落地。
+
+## 四、Agentic Agent：让模型动态决定下一步
+
+### 解决的问题：开放式任务的自主决策
+
+Agent 的最小工作循环可以理解为：
+
+```text
+            ┌─────────────────────────┐
+用户目标 →  │ 模型判断下一步该做什么  │
+            └──────────┬──────────────┘
+                       ↓
+                 调用一个工具
+                       ↓
+                观察工具结果
+                       │
+                继续 / 结束？
+                       └────→ 再次决策
+```
+
+2022 年提出、后续正式发表的 [ReAct](https://arxiv.org/abs/2210.03629) 是重要研究基础：它展示了推理与环境行动交替结合的方式。2023 年 AutoGPT、BabyAGI 等实验推动自主 Agent 循环的讨论；之后 Coding Agent 成为非常重要的工程落地场景。
+
+以 Coding Agent 为例：
+
+1. 读取仓库结构和相关代码；
+2. 根据问题调用搜索、命令行或浏览器工具；
+3. 修改文件，运行测试；
+4. 查看错误与测试结果，决定下一次修改；
+5. 达到完成条件后交付变更与证据。
+
+这里最重要的升级是 **执行路径从预定义改为动态决策**。开发者仍要提供工具、权限、边界和停止条件。
+
+### 为什么仍然困难？
+
+Agent 多跑一步，就增加一次出错或无效操作的机会。较长任务会产生大量工具输出，模型上下文可能不断积累无关信息；环境会变化，权限可能不足，任务也可能中途失败。
+
+典型工程问题包括：
+
+- **终止与预算**：何时停止？如何限制 tokens、工具调用和运行时间？
+- **上下文工程**：哪些信息保留在当前上下文？哪些应写入文件或持久存储？
+- **可验证性**：模型声称“完成”，如何证明代码通过测试、数据满足约束？
+- **恢复能力**：任务中断后如何保留事实与状态，继续从正确位置执行？
+
+这些问题构成后面 Harness Engineering 的核心。
+
+## 五、Multi-Agent：分工与并行扩展
+
+### 解决的问题：单 Agent 的上下文与吞吐瓶颈
+
+一种常见设计是 Orchestrator-Workers：
+
+```text
+               Lead Agent
+        规划 / 分配 / 汇总结果
+              /    |    \
+             /     |     \
+       Research  Coding  Review
+        Agent    Agent    Agent
+             \     |     /
+              汇总和验证
+```
+
+例如研究一个新框架时，Research Agent 阅读官方文档，Coding Agent 跑通 Demo，Review Agent 评估安全性和工程质量；Lead Agent 整理结果。
+
+Anthropic 在 2025 年 6 月发布 [How we built our multi-agent research system](https://www.anthropic.com/research/multi-agent-research-system)，介绍了研究 Agent 如何调度多个并行 Subagents。文中报告了特定内部评估上的显著收益；结果适用于所述研究任务，不能直接外推到所有项目。
+
+### 什么时候值得用？
+
+- 子任务能相对独立，适合并行；
+- 各子任务需要专门工具或上下文；
+- 单 Agent 的上下文容量和执行时长已经明显成为瓶颈；
+- 汇总与验证的成本低于分工带来的收益。
+
+### 新问题是什么？
+
+多 Agent 需要解决重复劳动、依赖关系、竞争修改、结果冲突和预算分配。对于简单的固定任务，一个清晰的 Workflow 或单 Agent 通常更易维护。
+
+**Multi-Agent 是架构选项，不是衡量 Agent 先进程度的等级。**
+
+## 六、Proactive Agent：从响应用户到主动推进目标
+
+### 解决的问题：任务发起过度依赖用户
+
+传统交互的起点是用户提出请求。Proactive Agent 的起点可以是长期目标、环境事件和状态变化。
+
+例如目标是「持续学习 Agent Engineering，并每周维护自己的技术博客」：
+
+```text
+长期目标 + 用户偏好 + 历史进展
+                    ↑
+GitHub / RSS / CI / 邮件 / 日历等事件
+                    ↓
+          变化是否值得行动？
+             /      |      \
+           忽略    主动建议   自动执行
+                    |          |
+                  用户审批 ← 高风险动作
+                    ↓
+           反馈、记忆与目标更新
+```
+
+其关键能力包括：
+
+- **长期目标与用户偏好**：知道什么样的变化与用户相关；
+- **环境感知**：Cron、Webhook、事件总线、外部 API 与状态扫描；
+- **主动介入判断**：综合价值、时效性、置信度与打扰成本；
+- **分级授权**：只读分析可自动执行；写入仓库、发送消息、消费资源等动作按权限策略执行；
+- **反馈闭环**：根据用户确认、拒绝和结果更新后续策略。
+
+Proactive Agent 在 2025 年已有明确的学术研究。论文 [Proactive Agent: Shifting LLM Agents from Reactive Responses to Active Assistance](https://proceedings.iclr.cc/paper_files/paper/2025/hash/75c37811e830bf029584b1c6fac17726-Abstract-Conference.html) 发表于 ICLR 2025，其预印本可以追溯到 2024 年。
+
+### 重点区分：定时任务与主动式 Agent
+
+「每天 11 点生成新闻」是定时自动化；「发现某个重要变化，判断是否影响当前目标，再选择执行、询问或忽略」更接近主动式 Agent。
+
+| 能力 | 传统 Cron + Workflow | Proactive Agent |
+| --- | --- | --- |
+| 触发时机 | 预设时间或事件 | 结合事件、状态、目标进行决策 |
+| 任务目标 | 通常由预先配置决定 | 能在授权范围内动态调整子目标 |
+| 行动选择 | 预定义路径 | AI 结合风险、价值、上下文选择 |
+| 反馈利用 | 依赖额外业务代码 | 通常将反馈用于下一轮判断 |
+
+### Proactive 的新瓶颈
+
+主动执行产生新的产品风险：什么时候应该保持安静？如何避免重复通知？AI 能改动什么？失败如何回滚？如何撤销授权？
+
+因此，Proactive 的成熟程度，很大程度取决于底层运行环境和权限、记忆、恢复、审计能力。它可以由 Workflow、单 Agent 或 Multi-Agent 实现。
+
+## 七、为什么 2026 年焦点转向 Harness Engineering？
+
+截至 2026 年 11 月，可以观察到明显的工程重心：**让 Agent 持续可靠地运行、使用真实计算环境、跨多轮上下文完成任务，并能验证与恢复。**
+
+这种转向有多个可核实的里程碑：
+
+- **2025-11-26**：Anthropic 发表 [Effective harnesses for long-running agents](https://www.anthropic.com/research/effective-harnesses-for-long-running-agents)，研究跨上下文窗口推进长期开发任务。
+- **2026-02-11**：OpenAI 发布 [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/)，强调为 Agent 设计清晰的环境、约束和反馈循环。
+- **2026-03-24**：Anthropic 发布 [Harness design for long-running apps](https://www.anthropic.com/research/harness-design-long-running-apps)，讨论长期应用开发的规划、状态管理与必要脚手架。
+- **2026-04-08**：Anthropic 在 [Scaling Managed Agents with stable interfaces](https://www.anthropic.com/research/managed-agents) 中讨论 Session、Harness 和 Sandbox 的分离。
+- **2026-08-19**：OpenAI 介绍 [Codex as a platform](https://developers.openai.com/blog/codex-as-a-platform)，强调可以把 Agent 运行环境嵌入专业产品工作流。
+- **2026-09**：研究 [Harness Engineering: Anatomy, Architecture, and Evolution of Coding Agents](https://arxiv.org/abs/2609.00006) 对多种 Coding Agent 的 Harness 进行源码层面的比较。
+
+### Harness 究竟是什么？
+
+可以把 **LLM 看成决策引擎，把 Harness 看成保证决策可以落地的执行系统**。一个实用架构：
+
+```text
+      User Goal / Scheduled Event / Webhook
+                       │
+                 Trigger + Policy
+                       │
+                  Agent Runtime
+          ┌────────────┼────────────┐
+          │            │            │
+      LLM Loop     Context       Planner
+          │        Manager          │
+          └────────────┼────────────┘
+                       │
+            Tools / MCP / Subagents
+                       │
+              Isolated Sandbox
+                       │
+           Artifacts / Tests / Evals
+                       │
+           Trace + Checkpoint + Audit
+                       │
+            Notify / Approve / Resume
+```
+
+其中几个工程模块值得独立理解：
+
+**1. Agent Loop**：封装模型调用、工具选择、观察结果和停止条件。
+
+**2. Context Engineering**：决定什么进入上下文，何时摘要或压缩，如何把关键事实保存在文件、数据库和长期状态中。
+
+**3. Sandbox & Tool Runtime**：提供隔离的文件系统、命令行、浏览器、网络权限和 API 调用。
+
+**4. Checkpoint & Resume**：记录进度与执行状态，支持跨进程、跨会话以及故障后继续运行。
+
+**5. Verification & Evals**：用测试、断言、结构化校验、评审 Agent 或人工审核验证交付结果。
+
+**6. Observability & Security**：记录调用轨迹、成本、延迟、权限和敏感操作，支持诊断与审计。
+
+Harness 作为运行机制早于 2026 年已经存在。**2026 年的重要变化，是其被更明确地视为独立、可研究、可优化的工程系统。**
+
+### 长时运行 Agent 和 Proactive Agent 是什么关系？
+
+两者是可组合的能力：
+
+- **Long-Running**：接到任务后，持续几小时甚至跨多个会话推进；
+- **Proactive**：根据环境变化，自主决定什么时候开始、继续或提出新任务；
+- **Harness**：为上述两类能力提供稳定运行、可靠恢复和安全执行的基础。
+
+一个 Agent 可以长期运行而始终由用户手动触发，也可以主动发现一个只需几秒完成的小任务。成熟平台通常会同时需要这两种能力。
+
+## 八、2026 年主流程度：把已落地与前沿趋势分开
+
+基于 2026 年公开产品、工程实践与调查，建议采用以下判断：
+
+| 方向 | 当前判断 | 典型场景 |
+| --- | --- | --- |
+| Agentic Coding | 代表性成熟场景 | 阅读仓库、修复 Bug、生成测试、创建 PR |
+| Workflow + Agent 混合编排 | 广泛适用的生产方案 | 客服、研究、数据处理、审批和报表 |
+| Harness / Context Engineering | 2026 年关键工程热点 | 工具环境、上下文持久化、评估与恢复 |
+| Long-Running Agents | 重要能力前沿 | 跨会话的软件开发、复杂调研和长周期工作 |
+| Multi-Agent | 按需采用的扩展架构 | 并行研究、专项代码审查、复杂子任务 |
+| Proactive / Always-on | 活跃的产品与研究方向 | 事件感知、长期目标推进、主动建议 |
+| Evals / Security / Observability | 生产质量基础设施 | 质量监测、成本控制、权限与审计 |
+
+在 LangChain 的 [State of Agent Engineering](https://www.langchain.com/resources/state-of-agent-engineering) 调查中，受访者正在重点关注生产可靠性、观测、评估和规模化。调查结果反映受访群体，不等同于整个市场的统一普及率。
+
+因此，将 2026 年简单地命名为「Proactive Agent 时代」会忽略实际工程面貌。更有解释力的概括是：
+
+**Agentic 应用持续落地，Harness、Long-Running、Evals 和安全能力成为支撑更高自治性的关键工程层。**
+
+## 九、如何选择架构：从需求和约束出发
+
+一个实用的选择顺序：
+
+1. **步骤是否稳定、输出是否可验证？** 优先 Workflow。
+2. **是否需要根据未知环境动态选择步骤？** 引入单 Agent Loop。
+3. **子任务是否真正适合并行分工？** 评估 Multi-Agent 的收益与成本。
+4. **任务能否跨进程、跨会话持续？** 建立持久化状态、检查点与恢复机制。
+5. **是否需要主动发现工作？** 在触发层叠加 Proactive 的目标与介入决策。
+6. **动作有什么风险？** 添加能力范围、预算限制、人工审批、审计与回滚方案。
+
+设计原则是 **先使用满足需求的最简单系统，再针对已观察到的瓶颈增加复杂度**。这是 Anthropic 2024 年《Building Effective Agents》所强调的实践取向。
+
+## 十、实战案例：把 AI 学习周报升级成 Agent 平台
+
+假设我们已经拥有一个固定的每周 AI 学习周报流程，目标是逐步实现 Proactive + Long-Running：
+
+### V1：Workflow（固定自动化）
+
+```text
+每周五触发
+→ 获取 GitHub Trending / 论文 / 工程博客
+→ 过滤 AI Agent 主题
+→ 按统一格式生成 MDX
+→ 创建 Draft PR
+→ 人工审核
+```
+
+成功标准：稳定运行、数据来源可追溯、文章结构统一、PR 能正确生成。
+
+### V2：Agentic（动态研究）
+
+Agent 可以按项目类型选择研究路径：分析 README、阅读代码、检索相关 issue、尝试运行 Demo、比较替代方案，并形成带证据的评分。
+
+成功标准：可解释工具调用、固定预算、真实测试和错误恢复。
+
+### V3：Harness + Long-Running（跨会话执行）
+
+加入任务数据库、沙箱、可恢复检查点、完整执行日志、去重和内容校验。发生超时、CI 失败或 PR 审查意见时，恢复原任务并继续处理。
+
+成功标准：中断后恢复、重复事件幂等、可审计、可观测。
+
+### V4：Proactive（主动推进学习目标）
+
+持续监听 GitHub Release、论文或工具生态变化，通过规则与模型共同判断重要性：
+
+- 普通信息：收集到下一次周报。
+- 高价值突破：主动创建研究任务。
+- 需要大量费用或权限：提交计划等待批准。
+- PR 失败或过期：主动提醒或按已授权策略修复。
+
+成功标准：用户认为有价值的主动行动比例提高，重复提醒、误触发和未经授权操作受到严格控制。
+
+### 一个适合 TypeScript / Next.js 开发者的最小实现
+
+推荐先做一个单 Agent 系统，逐步增加能力，而非同时堆叠多个 Agent：
+
+```text
+Next.js             管理 UI / 任务与审批页面
+PostgreSQL          任务、状态、事件与执行历史
+Queue / Scheduler   异步任务调度、重试、超时
+Agent Runtime       模型循环、工具选择和停止条件
+MCP / API           GitHub、搜索、文件工具
+Sandbox             受控执行代码与读写文件
+Observability       Traces、日志、调用成本、测试结果
+```
+
+任务建议至少包含：
+
+```ts
+type AgentTask = {
+  id: string;
+  goal: string;
+  status:
+    | "queued"
+    | "running"
+    | "waiting_approval"
+    | "failed"
+    | "completed";
+  trigger: "manual" | "cron" | "event" | "agent";
+  checkpointId?: string;
+  parentTaskId?: string;
+  budget: {
+    maxSteps: number;
+    maxCostUsd: number;
+  };
+  idempotencyKey: string;
+};
+```
+
+再为每个任务建立三个明确边界：
+
+- **完成条件**：例如 MDX 语法检查通过、引用链接有效、Draft PR 创建成功。
+- **停止条件**：达到执行预算、遇到无法授权的操作、连续失败超过阈值。
+- **恢复条件**：从持久检查点加载状态，重建必要上下文，跳过已成功的幂等操作。
+
+### 需要重点测试的异常路径
+
+| 故障 | 预期行为 |
+| --- | --- |
+| LLM 调用超时 | 限次重试，保留任务状态 |
+| GitHub API 限流 | 指数退避，稍后恢复 |
+| 重复 Webhook | 幂等键去重 |
+| 上下文过长 | 压缩、持久化关键事实后继续 |
+| CI 失败 | 回收测试日志，生成修复子任务 |
+| 高风险修改 | 进入审批，不自动越权执行 |
+| Agent 判断错误 | 保留轨迹、结果与人工纠正反馈 |
+
+只有当这些路径足够可靠时，更高主动性才会真正改善产品体验。
+
+## 十一、学习路径：2026 年 Agent 工程师应该优先掌握什么？
+
+**第一阶段：Workflow 与 Agent Loop。** 掌握工具调用、状态机、ReAct、停止条件、路由和重试，独立做出可控的多步骤 Agent。
+
+**第二阶段：Harness 与 Context Engineering。** 理解 Agent Runtime、MCP、Skills、上下文管理、沙箱和结构化工具；研究 Claude Code、Codex、Pi 等 Coding Agent 的实现差异。
+
+**第三阶段：长时运行与质量保证。** 实现持久化、断点恢复、队列、幂等、Traces、Evals、预算与审批。重点是多次执行后仍能交付可验证结果。
+
+**第四阶段：按需引入 Multi-Agent 与 Proactive。** 根据实际需求加入子任务并行、事件感知和主动介入决策，衡量它们带来的收益、费用和运维负担。
+
+## 结语
+
+从 Workflow 到 Agentic，系统获得了**动态决定执行路径**的能力；从响应式 Agent 到 Proactive Agent，系统获得了**主动选择介入时机**的能力；从短任务到 Long-Running Agent，系统获得了**跨上下文和跨会话持续推进任务**的能力。
+
+**Harness Engineering 将这些能力连接为真正可交付、可验证、可恢复的工程系统。**
+
+对 AI 产品工程师来说，2026 年最值得投入的方向是 **Agent Loop + Context Engineering + Harness + Long-Running + Evals**，然后根据产品需要叠加 Multi-Agent 与 Proactive 能力。
+
+---
+
+## 参考资料
+
+1. Anthropic, [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents), 2024-12-19.
+2. Yao et al., [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629), 2022.
+3. Anthropic, [How we built our multi-agent research system](https://www.anthropic.com/research/multi-agent-research-system), 2025-06-13.
+4. Lu et al., [Proactive Agent: Shifting LLM Agents from Reactive Responses to Active Assistance](https://proceedings.iclr.cc/paper_files/paper/2025/hash/75c37811e830bf029584b1c6fac17726-Abstract-Conference.html), ICLR 2025.
+5. Anthropic, [Effective harnesses for long-running agents](https://www.anthropic.com/research/effective-harnesses-for-long-running-agents), 2025-11-26.
+6. OpenAI, [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/), 2026-02-11.
+7. Anthropic, [Harness design for long-running apps](https://www.anthropic.com/research/harness-design-long-running-apps), 2026-03-24.
+8. Anthropic, [Scaling Managed Agents with stable interfaces](https://www.anthropic.com/research/managed-agents), 2026-04-08.
+9. OpenAI, [Codex as a platform](https://developers.openai.com/blog/codex-as-a-platform), 2026-08-19.
+10. [Harness Engineering: Anatomy, Architecture, and Evolution of Coding Agents](https://arxiv.org/abs/2609.00006), 2026.
+11. LangChain, [State of Agent Engineering](https://www.langchain.com/resources/state-of-agent-engineering), 2026.
