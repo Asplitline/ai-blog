@@ -1,0 +1,191 @@
+---
+title: "Agent Engineering 学习周报 #9：Skills 评测、人工审阅与 Agent UI 协议"
+description: "2026-11-13 至 2026-11-20：追踪 NVIDIA SkillEvaluator、Plannotator、Alibaba Open Code Review、AG-UI 及 Stitch Skills 等仓库的可核实变化，设计 Agent 工作台实践。"
+date: "2026-11-20"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Skills
+  - Harness
+  - Evaluation
+  - Control Plane
+  - Agent UI
+  - Runtime
+  - Developer Tooling
+  - Security
+  - Weekly Review
+draft: false
+---
+
+> **统计周期**：2026-11-13（周五）至 2026-11-20（周五）08:23，Asia/Shanghai（UTC+8）。周五早间生成，故统计窗口截至执行时刻，11 月 20 日剩余时间尚未纳入。
+>
+> **证据规则**：GitHub 原始提交和 Release 为“本周变更”证据；README 和官方文档说明项目定位；[GitStock 11/19 周榜快照](https://gitstock.org/trending/weekly/2026-11-19)及[11/19 日榜快照](https://gitstock.org/trending/2026-11-19)用于发现与关注度参考。动态榜单的“最近七天”与本文周五到周五统计区间并不完全相同。以下评分为面向 Agent 产品工程学习的个人判断。
+
+## 本周结论
+
+本周最值得深入的三个主题：
+
+1. **Skills 开始拥有独立的质量门禁**：NVIDIA SkillEvaluator 让“Skill 能否被 Harness 加载、是否安全、是否真正提升任务完成率”变成可测试问题。
+2. **Agent 工作台正在形成可操作的人工协作界面**：Plannotator 的计划批注、PR Review、会话与反馈设计值得直接研究。
+3. **Agent 输出从对话流走向结构化事件与证据**：AG-UI 负责前后端交互事件；Open Code Review 把代码范围、规则和行级发现连接起来。
+
+工程判断：下一阶段的 Agent 平台应把 **运行事件、人工审批、结果证据、质量评测** 放在同一个任务闭环里。
+
+## 一、本周新增 / 重要更新
+
+### 1. [NVIDIA/SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator) · Skills / Evaluation / Security
+
+**推荐 9.5/10 · 难度中高 · P0**
+
+**定位与原理**：Agent Skills 的质量评估框架。Tier 1 检查格式、质量、许可证、敏感信息、脚本和 Harness 兼容性；Tier 2 检查语义重复；Tier 3 通过沙箱中的真实 Agent 运行，对比安装 Skill 前后的任务表现（Skill Lift）。项目支持 CLI 和 CI 集成，详见 [README](https://github.com/NVIDIA/SkillEvaluator/blob/main/README.md) 与 [评测文档](https://github.com/NVIDIA/SkillEvaluator/blob/main/docs/index.mdx)。
+
+**本周期已确认提交（UTC 时间，均落在统计窗口）**：
+- [11/19 21:03 UTC：补充 SkillSpector hook 超时测试](https://github.com/NVIDIA/SkillEvaluator/commit/490de6c086)。
+- [11/19 20:50 UTC：修复循环符号链接情况下 SARIF 发现保留](https://github.com/NVIDIA/SkillEvaluator/commit/6abca0bd5c)。
+- [11/19 20:22 UTC：为插件引入经审查的命令 hook 豁免](https://github.com/NVIDIA/SkillEvaluator/commit/14132c18b4)。
+- [11/19 20:29 UTC：Tier 2 聚类相似度存储优化](https://github.com/NVIDIA/SkillEvaluator/commit/2f6126c247)。
+
+**工程价值**：把原先凭主观感受判断的 Skill 质量拆成可验证的静态质量、安全、可发现性、有效性与成本指标。适合给已有页面设计 Skill 增加 PR 检查。
+
+**实践**：安装后先运行 `skillevaluator quality-check ./my-skill`，记录分数与具体发现；随后使用 `skillevaluator harness-check ./my-skill` 检查不同 Agent 宿主的加载兼容性。Tier 3 需要额外环境和凭据，先做固定测试任务与对照组。
+
+### 2. [backnotprop/plannotator](https://github.com/backnotprop/plannotator) · Control Plane / Human-in-the-loop
+
+**推荐 9.4/10 · 难度中 · P0**
+
+**定位与原理**：为 Claude Code、Codex、OpenCode 等 Coding Agent 提供计划、批注、代码 Review 和人工反馈界面。将用户对计划或代码的意见整理为可回传的结构化反馈；它是研究 Agent 平台“等待人工处理”交互的优质参考。[README 与开发命令](https://github.com/backnotprop/plannotator)。
+
+**本周期已确认提交**：
+- [11/19 23:42 UTC：合并 Inbox 内联媒体相关 PR #3737](https://github.com/backnotprop/plannotator/commit/eed3f69fd1)。
+- [11/19 22:43 UTC：合并 Show Me 功能相关 PR #3696](https://github.com/backnotprop/plannotator/commit/ad587d8159)。
+- [11/19 22:09 UTC：合并语义相关修复 PR #3691](https://github.com/backnotprop/plannotator/commit/c2f23f7d0f)。
+
+以上为合并记录，具体交互效果需结合 PR Diff 和实际运行验证。此前 [v0.28.62 Release](https://github.com/backnotprop/plannotator/releases) 发布于 11/12，属于上周期边界之前的背景，涵盖 Inbox 启动 Agent、模型与 effort 选择、团队规则等，本文不标记为本周发布。
+
+**工程价值**：计划审批与代码审阅可共享“选择对象 → 批注 → 发送反馈 → Agent 继续 → 再次审核”的交互模型。建议重点阅读 [apps](https://github.com/backnotprop/plannotator/tree/main/apps)、[packages](https://github.com/backnotprop/plannotator/tree/main/packages)。
+
+**实践**：设计一个任务卡，包含目标、运行阶段、变更文件、待人工问题、批准/修改/停止动作；将每条反馈关联到任务与具体代码位置。
+
+### 3. [alibaba/open-code-review](https://github.com/alibaba/open-code-review) · Coding Agents / Evaluation / Security
+
+**推荐 9.2/10 · 难度中高 · P0**
+
+**定位与原理**：采用 Git Diff、确定性文件选择与规则解析，再结合 LLM 生成可定位到代码行的评审结果。提供 CLI、Skill 与 CI 集成；核心学习价值是“可控输入范围 + 规则 + 证据化输出”。[项目仓库](https://github.com/alibaba/open-code-review)、[Skill 工作流](https://github.com/alibaba/open-code-review/blob/main/skills/open-code-review/SKILL.md)、[Delegate 模式](https://github.com/alibaba/open-code-review/blob/main/skills/open-code-review-delegate/SKILL.md)。
+
+**本周期已确认提交**：
+- [11/19 07:28 UTC：新增 SQL Review 规则](https://github.com/alibaba/open-code-review/commit/55b4b311d6)。
+- [11/19 02:00 UTC：修复 LLM Loop 的上下文压缩预算预留](https://github.com/alibaba/open-code-review/commit/445ad9dea3)。
+- [11/19 07:51 UTC：GitLab CI 失败评审不再发布误导性的 LGTM](https://github.com/alibaba/open-code-review/commit/37ff307598)。
+- [11/19 06:21 UTC：增加 CUDA/HIP 文件评审支持](https://github.com/alibaba/open-code-review/commit/1363b96552)。
+
+**工程价值**：这组变更体现代码审查 Agent 的关键可靠性问题：文件类型覆盖、上下文预算、准确报告失败、行级证据。尤其适合构建 AI 代码 Review 的质量门禁。
+
+**实践**：准备含 SQL 注入风险、无风险 SQL、TypeScript 逻辑 Bug 的三个测试 PR，比较规则检查与模型评审结果，记录误报、漏报和定位准确率。
+
+### 4. [ag-ui-protocol/ag-ui](https://github.com/ag-ui-protocol/ag-ui) · Agent UI Protocol / Runtime
+
+**推荐 9.3/10 · 难度中 · P0**
+
+**定位与原理**：标准化 Agent 与前端之间的事件流。支持运行生命周期、文本、工具调用、状态快照/增量和人工交互。前端可以通过同一事件模型连接不同 Agent Runtime。[README](https://github.com/ag-ui-protocol/ag-ui)、[协议与架构](https://github.com/ag-ui-protocol/ag-ui/blob/main/CLAUDE.md)、[Server Quickstart](https://github.com/ag-ui-protocol/ag-ui/blob/main/docs/quickstart/server.mdx)。
+
+**本周期已确认提交**：
+- [11/19 19:21 UTC：Mastra 适配器能力身份中声明版本](https://github.com/ag-ui-protocol/ag-ui/commit/34ce3c1279)。
+- [11/17 16:46 UTC：Cloudflare Agents 集成版本更新到 0.1.0](https://github.com/ag-ui-protocol/ag-ui/commit/13f3a598d1)。
+- [11/17 16:12 UTC：合并 Cloudflare Agents 集成 PR #3365](https://github.com/ag-ui-protocol/ag-ui/commit/c19baf7aa9)。
+
+**工程价值**：适合 React/Next.js 开发者从“聊天 UI”升级到可显示工具执行、步骤、审批和状态恢复的 Agent 工作台。
+
+**实践**：实现一个 SSE 端点发送 `RUN_STARTED`、`TEXT_MESSAGE_*`、`TOOL_CALL_*`、`STATE_SNAPSHOT`、`RUN_FINISHED`，前端通过事件 reducer 维护视图；增加断线重连与重复事件处理测试。
+
+## 二、持续值得学习：本周有具体变更的前期项目
+
+### [GoogleChrome/modern-web-guidance-src](https://github.com/GoogleChrome/modern-web-guidance-src) · Skills / Web Evaluation
+
+**推荐 9.3/10 · 难度中 · P0（前期已介绍）**
+
+上期已经分析其现代 Web 指南、AST 扫描和质量评测，本期聚焦工程治理：
+
+- [11/19 21:49 UTC：RAG Benchmark 从阻塞 PR 调整为 Release Gate](https://github.com/GoogleChrome/modern-web-guidance-src/commit/3e670e9c8a)。
+- [11/19 17:48 UTC：允许带模型后缀的 Nightly Suite ID](https://github.com/GoogleChrome/modern-web-guidance-src/commit/04ab6d3ad6)。
+- [11/19 18:53 UTC：澄清离线与 Telemetry 行为及 Node 22+ 要求](https://github.com/GoogleChrome/modern-web-guidance-src/commit/675901f876)。
+
+**工程启示**：质量检查需要分级。快速、确定性的检查适合每个 PR；耗时或波动较大的模型评测可以放到 Nightly 或 Release Gate。与本期 SkillEvaluator 形成完整学习链。
+
+### [google-labs-code/stitch-skills](https://github.com/google-labs-code/stitch-skills) · Skills / Design to Code
+
+**推荐 9.0/10 · 难度低中 · P1**
+
+通过 Stitch MCP 和 Agent Skills 提供设计生成、设计系统管理、代码到设计、React/shadcn/ui 等工作流。[README](https://github.com/google-labs-code/stitch-skills/blob/main/README.md) 与 [插件目录](https://github.com/google-labs-code/stitch-skills/tree/main/plugins)。
+
+**本周期变更**：[11/18 05:00 UTC：合并 README 补充 site-md Skill 的 PR #100](https://github.com/google-labs-code/stitch-skills/commit/4cf4db8e41)，源于 [11/17 文档提交](https://github.com/google-labs-code/stitch-skills/commit/cf1dcd0de3)。这是文档可发现性改善，已有 Skill 的架构应按实际仓库版本核对。
+
+**工程价值**：将 DESIGN.md / SITE.md 与 React 组件规范连接，形成“设计约束 → 页面生成 → 组件复用 → 质量审核”的工作流。对页面设计 Skill 和 UI 审美检查特别适用。
+
+### [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) · Developer Tooling / Browser
+
+**推荐 8.9/10 · 难度中 · P1**
+
+**本周期变更**：[11/19 17:06 UTC：拆分输入工具导入，减少对 browser bundle 的耦合](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/bdecb63549)；[11/19 17:06 UTC：模拟工具导入解耦](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/c5d5d7fac4)；[11/19 12:46 UTC：测试文件结束后关闭共享 browser 实例](https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/8288d3549e)。
+
+**工程价值**：Browser Agent 的工具模块隔离与测试资源清理直接影响稳定性。结合上期 [agent-browser](https://github.com/vercel-labs/agent-browser) 学习 snapshot → action → verify。
+
+## 三、前期学习延续与能力地图
+
+| 能力层 | 参考仓库 | 本期位置 |
+| --- | --- | --- |
+| Skills / Evaluation | [SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator)、[modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance-src) | 本期重点：质量与真实效果 |
+| Control Plane / Human-in-the-loop | [Plannotator](https://github.com/backnotprop/plannotator)、[dsh-superagent](https://github.com/deepseek-ai/dsh-superagent-prototype) | 本期重点：审阅与授权 |
+| Agent UI Protocol / Runtime | [AG-UI](https://github.com/ag-ui-protocol/ag-ui) | 本期重点：事件模型 |
+| Coding Agents / Review | [Open Code Review](https://github.com/alibaba/open-code-review) | 本期重点：确定性扫描 + LLM |
+| Harness / Sandbox | [worktrunk](https://github.com/max-sixty/worktrunk)、[Orca](https://github.com/stablyai/orca) | 延续上期的 worktree 与隔离 |
+| Context / Memory | [claude-mem](https://github.com/thedotmack/claude-mem)、[Hindsight](https://github.com/vectorize-io/hindsight) | 继续研究跨会话记忆和来源 |
+| Gateway / Local Inference | [LiteLLM](https://github.com/BerriAI/litellm)、[llama.cpp](https://github.com/ggml-org/llama.cpp) | 保留学习线索，本期未形成足够核实的专题变化 |
+| Security / Provenance | [codex-security](https://github.com/openai/codex-security)、[SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator) | 延续证据化输出 |
+
+**与既有文章衔接**：
+
+- [周报 #8：Agent 执行环境、隔离与可验证质量](https://github.com/Asplitline/ai-blog/blob/main/content/posts/agent-engineering-weekly-2026-11-13.mdx)：浏览器 Runtime、worktree、Web 指南与质量验证。
+- [DeepSeek Superagent 架构解读](https://github.com/Asplitline/ai-blog/blob/main/content/posts/deepseek-dsh-superagent-architecture-analysis.mdx)：Mandate、Ticket、Assignment、Subscription、Outbox。可与 Plannotator 的审阅交互及 AG-UI 的事件协议组合。
+
+**判断**：Superagent 定义任务和权限，AG-UI 定义前端事件传输，Plannotator 提供人机审阅参考，SkillEvaluator / Open Code Review 提供质量验证。四者组合适合构建完整 Agent 产品工程 Demo。
+
+## 四、Trending 证据与去重
+
+[11 月 19 日周榜快照](https://gitstock.org/trending/weekly/2026-11-19)包含 modern-web-guidance-src、Plannotator、Stitch Skills、Open Code Review、Chrome DevTools MCP、AG-UI、agent-browser、codex-security 等。这里的榜单属于动态七日热度快照，本文**没有将上榜本身当作本周发布或功能变更**。对于上期已经覆盖的 modern-web-guidance、agent-browser、codex-security，优先复盘具体提交；对于 Stitch Skills 的文档更新，按文档更新标注。
+
+11 月 19 日[日榜快照](https://gitstock.org/trending/2026-11-19)还包含 Cursor Plugins、CLI-Anything、ECC 等，作为后续发现候选，尚未逐个完成本周期源码差异核验，因此本期不把它们列为“已确认重要更新”。
+
+## 五、周六 / 周日学习计划（11/21–11/22）
+
+以 TypeScript、Next.js、React、Tailwind、shadcn/ui 为主栈。实践项目：**Agent Review Workbench**。
+
+| 时间 | 任务 | 可验收产出 |
+| --- | --- | --- |
+| 周六 09:00–10:30 | 阅读 AG-UI [README](https://github.com/ag-ui-protocol/ag-ui/blob/main/README.md) 与 [架构](https://github.com/ag-ui-protocol/ag-ui/blob/main/CLAUDE.md) | 定义事件类型、Run/Task/Approval 的关系 |
+| 周六 10:45–12:00 | 实现 SSE Mock Agent Runtime | 事件流可重放、可检测顺序与重复 |
+| 周六 14:00–16:00 | React 任务详情页：消息、工具调用、状态、结果 | 同一页面实时显示 Run 与工具证据 |
+| 周日 09:00–11:00 | 参考 Plannotator 做批注与审批卡 | 批准、请求修改、停止可转为结构化反馈 |
+| 周日 14:00–15:30 | 选择已有 UI Skill，用 SkillEvaluator 进行静态检查 | 保存报告与修改前后差异 |
+| 周日 15:30–16:30 | 用 Open Code Review 的规则/证据模式检查一个测试 PR | 记录问题定位、误报与漏报 |
+
+### 下周（11/23–11/27）延伸
+
+1. 用 Prisma + MySQL 持久化 `Task`、`Run`、`Event`、`Approval`、`Evidence`；每个 Event 保留幂等键、时间戳和关联任务。
+2. 将 Review 的结构化反馈送回 Worker；实现 `waiting_for_human → running` 状态转换，测试进程重启与重复消息。
+3. 给页面生成 Skill 建立五条固定任务，对比启用/停用 Skill 的产出，并记录完成率、错误、时间与 Token 成本。
+4. 将检查分成 PR 快速门禁与 Nightly 模型评测，输出一份可复用的工程设计说明。
+
+**最小验收标准**：一个任务能流式显示事件、等待人工审批、接收修改意见后继续执行；重放事件不会重复审批；每次结果可定位到证据；Skill 检查有可比较的报告。
+
+## 参考与事实边界
+
+- [GitHub Trending](https://github.com/trending) / [GitStock 11/19 周榜存档](https://gitstock.org/trending/weekly/2026-11-19)
+- [NVIDIA SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator) · [官方评测文档](https://github.com/NVIDIA/SkillEvaluator/blob/main/docs/index.mdx)
+- [Plannotator](https://github.com/backnotprop/plannotator) · [Releases](https://github.com/backnotprop/plannotator/releases)
+- [Alibaba Open Code Review](https://github.com/alibaba/open-code-review) · [Skill](https://github.com/alibaba/open-code-review/blob/main/skills/open-code-review/SKILL.md)
+- [AG-UI](https://github.com/ag-ui-protocol/ag-ui) · [协议介绍](https://github.com/ag-ui-protocol/ag-ui/blob/main/docs/introduction.mdx)
+- [Google Stitch Skills](https://github.com/google-labs-code/stitch-skills)
+- [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp)
+
+**核验范围**：上述具体提交通过 GitHub 提交列表及提交链接确认，日期使用 GitHub 提交的 UTC 时间并按 UTC+8 解释。文章中的“工程价值”“评分”“建议实践”属于作者分析。此次没有对全部 Trending 仓库逐项审计，也没有对这些项目运行性能基准测试。
