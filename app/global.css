@@ -21,10 +21,12 @@ html[data-zen-reading='true'] #nd-docs-layout {
   --fd-sidebar-width: 0px;
   --fd-toc-width: 0px;
   --fd-layout-width: 100vw;
-  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-columns: 0px minmax(0, 1fr) 0px !important;
 }
 
 html[data-zen-reading='true'] #nd-docs-layout > header,
+html[data-zen-reading='true'] #nd-docs-layout #nd-nav,
+html[data-zen-reading='true'] #nd-docs-layout [data-nav],
 html[data-zen-reading='true'] #nd-docs-layout #nd-sidebar,
 html[data-zen-reading='true'] #nd-docs-layout #nd-toc,
 html[data-zen-reading='true'] #nd-docs-layout [data-toc],
