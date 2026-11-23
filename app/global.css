@@ -9,3 +9,59 @@
 body {
   margin: 0;
 }
+
+/* Zen is scoped to article pages and reset when the toggle unmounts. */
+.zen-reading-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+html[data-zen-reading='true'] #nd-docs-layout {
+  --fd-sidebar-width: 0px;
+  --fd-toc-width: 0px;
+  --fd-layout-width: 100vw;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+html[data-zen-reading='true'] #nd-docs-layout > header,
+html[data-zen-reading='true'] #nd-docs-layout #nd-sidebar,
+html[data-zen-reading='true'] #nd-docs-layout #nd-toc,
+html[data-zen-reading='true'] #nd-docs-layout [data-toc],
+html[data-zen-reading='true'] #nd-docs-layout [data-toc-popover],
+html[data-zen-reading='true'] #nd-docs-layout .zen-reading-secondary {
+  display: none !important;
+}
+
+html[data-zen-reading='true'] #nd-docs-layout main,
+html[data-zen-reading='true'] #nd-docs-layout #nd-page {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+html[data-zen-reading='true'] #nd-docs-layout #nd-page {
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: 5rem max(1.25rem, calc((100vw - 760px) / 2)) 5rem;
+}
+
+html[data-zen-reading='true'] .zen-reading-controls {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 60;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  html[data-zen-reading='true'] #nd-docs-layout #nd-page {
+    padding: 4.75rem 1.25rem 3rem;
+  }
+}
+
+@media print {
+  .zen-reading-controls {
+    display: none;
+  }
+}
