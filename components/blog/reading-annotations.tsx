@@ -53,7 +53,7 @@ export function ReadingAnnotations({ slug, title, children }: {
     return () => window.removeEventListener('storage', load);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = root.current;
     if (!element) return;
     const map = new Map<string, Range>();
@@ -94,7 +94,7 @@ export function ReadingAnnotations({ slug, title, children }: {
   }, []);
 
   useEffect(() => {
-    if (!ready || editor) return;
+    if (!ready || editor || panel) return;
     let timer: ReturnType<typeof setTimeout>;
     let pointerDown = false;
     function inspect() {
@@ -128,7 +128,7 @@ export function ReadingAnnotations({ slug, title, children }: {
       document.removeEventListener('pointerup', endPointer);
       document.removeEventListener('pointercancel', endPointer);
     };
-  }, [ready, editor]);
+  }, [ready, editor, panel]);
 
   // Keep the selected source visibly highlighted even after textarea focus.
   useLayoutEffect(() => {
@@ -136,7 +136,7 @@ export function ReadingAnnotations({ slug, title, children }: {
       (activeId ? ranges.current.get(activeId) : hover ? ranges.current.get(hover.id) : null);
     const name = editor || activeId ? 'reading-annotation-active' : 'reading-annotation-hover';
     const redraw = () => {
-      if (typeof Highlight !== 'undefined' && CSS.highlights) {
+      if (typeof Highlight !== 'undefined' && typeof CSS !== 'undefined' && CSS.highlights) {
         CSS.highlights.delete('reading-annotation-active');
         CSS.highlights.delete('reading-annotation-hover');
         if (range) {
@@ -208,6 +208,13 @@ export function ReadingAnnotations({ slug, title, children }: {
     feedbackTimer.current = setTimeout(() => { setFeedback(null); setActiveId(null); }, 1800);
   }
 
+  useEffect(() => {
+    const clear = () => setHover(null);
+    window.addEventListener('scroll', clear, true);
+    window.addEventListener('resize', clear);
+    return () => { window.removeEventListener('scroll', clear, true); window.removeEventListener('resize', clear); };
+  }, []);
+
   function hit(x: number, y: number) {
     return current.find(note => Array.from(ranges.current.get(note.id)?.getClientRects() ?? []).some(rect =>
       x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
@@ -215,7 +222,7 @@ export function ReadingAnnotations({ slug, title, children }: {
 
   useEffect(() => {
     if (!editing) return;
-    // Keep the native selection visible; focus the input only on desktop.
+    // The cloned range supplies the active highlight after focus moves.
     if (window.matchMedia('(pointer: fine)').matches) popup.current?.querySelector('textarea')?.focus({ preventScroll: true });
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -259,6 +266,9 @@ export function ReadingAnnotations({ slug, title, children }: {
     setHover(null);
     setPanel(false);
     const rect = ranges.current.get(note.id)?.getBoundingClientRect();
+    if (rect && (rect.top < 0 || rect.bottom > window.innerHeight)) {
+      window.scrollBy({ top: rect.top - window.innerHeight / 3, behavior: 'instant' });
+    }
     setEditor({ id: note.id, anchor: note, content: note.content, x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2, y: rect?.bottom ?? 80 });
   }
 
@@ -293,7 +303,7 @@ export function ReadingAnnotations({ slug, title, children }: {
   return (
     <div className="reading-annotations">
       <div className="annotation-toolbar">
-        <button type="button" aria-expanded={panel} onClick={() => setPanel(!panel)} className="annotation-button">
+        <button type="button" aria-expanded={panel} onClick={() => { if (editor) dismiss(); setHover(null); setPanel(!panel); }} className="annotation-button">
           <span aria-hidden="true">✎</span> 批注 <span className="annotation-count">{current.length}</span>{missing.length > 0 && <span className="annotation-dot" title="存在未定位批注" />}
         </button>
       </div>
