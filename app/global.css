@@ -10,44 +10,44 @@ body {
   margin: 0;
 }
 
-/* Zen is scoped to article pages and reset when the toggle unmounts. */
+/* Preserve the Fumadocs layout outside Zen. */
+.zen-reading-article {
+  display: contents;
+}
 .zen-reading-controls {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 0.5rem;
 }
-
-html[data-zen-reading='true'] #nd-docs-layout {
-  --fd-sidebar-width: 0px;
-  --fd-toc-width: 0px;
-  --fd-layout-width: 100vw;
-  grid-template-columns: 0px minmax(0, 1fr) 0px !important;
+.zen-reading-progress {
+  display: none;
 }
 
-html[data-zen-reading='true'] #nd-docs-layout > header,
-html[data-zen-reading='true'] #nd-docs-layout #nd-nav,
-html[data-zen-reading='true'] #nd-docs-layout [data-nav],
-html[data-zen-reading='true'] #nd-docs-layout #nd-sidebar,
-html[data-zen-reading='true'] #nd-docs-layout #nd-toc,
-html[data-zen-reading='true'] #nd-docs-layout [data-toc],
-html[data-zen-reading='true'] #nd-docs-layout [data-toc-popover],
-html[data-zen-reading='true'] #nd-docs-layout .zen-reading-secondary {
+/* Keep only the path from body to our article. This avoids relying on
+   Fumadocs' private IDs, grid tracks and responsive sidebar variants. */
+html[data-zen-reading='true'] body :has(.zen-reading-article):not(:is(script, style)) {
+  display: contents !important;
+}
+html[data-zen-reading='true'] body:has(.zen-reading-article) > :not(:has(.zen-reading-article), .zen-reading-article, script, style),
+html[data-zen-reading='true'] body :has(.zen-reading-article) > :not(:has(.zen-reading-article), .zen-reading-article, script, style),
+html[data-zen-reading='true'] .zen-reading-secondary {
   display: none !important;
 }
-
-html[data-zen-reading='true'] #nd-docs-layout main,
-html[data-zen-reading='true'] #nd-docs-layout #nd-page {
-  width: 100%;
-  min-width: 0;
-  max-width: none;
+html[data-zen-reading='true'] body {
+  display: block;
+  overflow: visible;
 }
-
-html[data-zen-reading='true'] #nd-docs-layout #nd-page {
+html[data-zen-reading='true'] .zen-reading-article {
+  display: block;
   box-sizing: border-box;
+  width: min(100%, 840px);
   margin-inline: auto;
-  padding: 5rem max(1.25rem, calc((100vw - 760px) / 2)) 5rem;
+  padding: 5rem 20px;
+  overflow-wrap: anywhere;
 }
-
+html[data-zen-reading='true'] .zen-reading-article h1 {
+  margin-top: 1.5rem;
+}
 html[data-zen-reading='true'] .zen-reading-controls {
   position: fixed;
   top: 1rem;
@@ -55,16 +55,29 @@ html[data-zen-reading='true'] .zen-reading-controls {
   z-index: 60;
   margin: 0;
 }
-
+html[data-zen-reading='true'] .zen-reading-progress {
+  display: block;
+  position: fixed;
+  inset: 0 0 auto;
+  height: 2px;
+  z-index: 61;
+  pointer-events: none;
+  background: var(--color-fd-border);
+}
+.zen-reading-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--color-fd-primary);
+  transform-origin: left;
+}
 @media (max-width: 640px) {
-  html[data-zen-reading='true'] #nd-docs-layout #nd-page {
-    padding: 4.75rem 1.25rem 3rem;
+  html[data-zen-reading='true'] .zen-reading-article {
+    padding-block: 4.75rem 3rem;
   }
 }
-
 @media print {
-  .zen-reading-controls {
-    display: none;
+  .zen-reading-controls, .zen-reading-progress {
+    display: none !important;
   }
 }
 
