@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 type ReadingAnchor = { element: Element; top: number } | null;
 
@@ -9,7 +9,7 @@ export function ZenReadingToggle() {
   const anchor = useRef<ReadingAnchor>(null);
   const progress = useRef<HTMLSpanElement>(null);
 
-  function toggle(next: boolean) {
+  const toggle = useCallback((next: boolean) => {
     const blocks = document.querySelectorAll(
       '.zen-reading-article :is(h1,h2,h3,h4,p,li,pre,table,blockquote)',
     );
@@ -21,7 +21,7 @@ export function ZenReadingToggle() {
       ? { element: visible, top: visible.getBoundingClientRect().top }
       : null;
     setEnabled(next);
-  }
+  }, []);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.zenReading = String(enabled);
@@ -36,10 +36,24 @@ export function ZenReadingToggle() {
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') toggle(false);
+      if (event.defaultPrevented || event.repeat || event.isComposing) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"]')) return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"], .annotation-popover, .annotation-panel, #article-navigation-panel')) return;
+      if (event.key === 'Escape' && enabled) { toggle(false); return; }
+      if (event.key.toLowerCase() === 'z' && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
+        if (window.getSelection()?.toString()) return;
+        event.preventDefault();
+        toggle(!enabled);
+      }
     };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [enabled, toggle]);
+
+  useEffect(() => {
+    if (!enabled) return;
     const updateProgress = () => {
       const total = document.documentElement.scrollHeight - window.innerHeight;
       const ratio = total > 0 ? Math.min(1, Math.max(0, window.scrollY / total)) : 1;
@@ -47,13 +61,11 @@ export function ZenReadingToggle() {
     };
     const observer = new ResizeObserver(updateProgress);
     observer.observe(document.body);
-    document.addEventListener('keydown', onKeyDown);
     window.addEventListener('scroll', updateProgress, { passive: true });
     window.addEventListener('resize', updateProgress);
     updateProgress();
     return () => {
       observer.disconnect();
-      document.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('scroll', updateProgress);
       window.removeEventListener('resize', updateProgress);
     };
@@ -67,12 +79,14 @@ export function ZenReadingToggle() {
       <button
         type="button"
         aria-pressed={enabled}
-        title={enabled ? '退出专注阅读（Esc）' : '进入专注阅读'}
+        aria-keyshortcuts="Z Escape"
+        title={enabled ? '退出专注阅读（Z / Esc）' : '进入专注阅读（Z）'}
         onClick={() => toggle(!enabled)}
         className="inline-flex items-center gap-2 rounded-full border bg-fd-background px-3 py-1.5 text-xs font-medium text-fd-foreground shadow-sm transition-colors hover:bg-fd-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring"
       >
         <span aria-hidden="true">{enabled ? '↙' : '⛶'}</span>
-        {enabled ? '退出 Zen · Esc' : 'Zen 阅读'}
+        {enabled ? '退出 Zen' : 'Zen'}
+        <kbd className="reading-key">{enabled ? 'Esc' : 'Z'}</kbd>
       </button>
     </div>
   );
