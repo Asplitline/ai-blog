@@ -7,6 +7,8 @@ import {
   DocsTitle,
 } from 'fumadocs-ui/layouts/notebook/page';
 import { ArticleMeta } from '@/components/blog/article-meta';
+import { ArticleNavigation } from '@/components/blog/article-navigation';
+import { ZenReadingToggle } from '@/components/blog/zen-reading-toggle';
 import { getMDXComponents } from '@/components/mdx';
 import { getPublishedPosts } from '@/lib/posts';
 import { blog } from '@/lib/source';
@@ -44,17 +46,27 @@ export default async function PostPage({
   if (!page || page.data.draft) notFound();
 
   const MDX = page.data.body;
+  const posts = getPublishedPosts().map((post) => ({
+    title: post.data.title,
+    url: post.url,
+  }));
 
   return (
     <DocsPage toc={page.data.toc}>
-      <ArticleMeta
-        date={page.data.date}
-        category={page.data.category}
-        tags={page.data.tags}
-      />
+      <ZenReadingToggle />
+      <div className="zen-reading-secondary">
+        <ArticleNavigation posts={posts} currentUrl={page.url} />
+        <ArticleMeta
+          date={page.data.date}
+          category={page.data.category}
+          tags={page.data.tags}
+        />
+      </div>
       <DocsTitle>{page.data.title}</DocsTitle>
       {page.data.description ? (
-        <DocsDescription>{page.data.description}</DocsDescription>
+        <div className="zen-reading-secondary">
+          <DocsDescription>{page.data.description}</DocsDescription>
+        </div>
       ) : null}
       <DocsBody>
         <MDX components={getMDXComponents()} />
