@@ -50,14 +50,18 @@ export default async function PostPage({
   const posts = getPublishedPosts().map((post) => ({
     title: post.data.title,
     url: post.url,
+    date: post.data.date,
+    category: post.data.category,
   }));
 
   return (
     <DocsPage toc={page.data.toc}>
       <div className="zen-reading-article">
-        <ZenReadingToggle key={slug} />
-        <div className="zen-reading-secondary">
-          <ArticleNavigation posts={posts} currentUrl={page.url} />
+        <div className="reading-page-nav" aria-label="阅读导航">
+          <div className="zen-reading-secondary">
+            <ArticleNavigation key={slug} posts={posts} currentUrl={page.url} />
+          </div>
+          <ZenReadingToggle key={slug} />
         </div>
         <ArticleMeta
           date={page.data.date}
