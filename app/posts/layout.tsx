@@ -8,7 +8,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <DocsLayout
       {...baseOptions()}
       tree={blog.getPageTree()}
-      sidebar={{ enabled: false }}
+      sidebar={{ collapsible: true }}
     >
       {children}
     </DocsLayout>
