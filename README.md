@@ -96,3 +96,7 @@ Git Integration 已用于自动部署：
 - `main` → Production Deployment
 
 推荐在 Vercel Preview Check 成功后再合并 PR。
+
+## 本地阅读批注
+
+在文章正文选中文字后自动弹出批注框，内容选填；保存后高亮原文。点击高亮可编辑，右侧批注面板可定位、删除和导出全部记录（JSON / Markdown）。Zen 模式同样可使用。批注仅保存在当前浏览器的 localStorage（按站点 origin 隔离），清除站点数据或更换浏览器会丢失或无法访问原记录，建议定期导出。JSON 保留定位数据和文章链接，Markdown 适合交给 AI 解答。当前版本提供导出，不提供导入或跨设备同步。无需 GitHub Token、后端或调整静态部署。
