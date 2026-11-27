@@ -54,22 +54,22 @@ export default async function PostPage({
   return (
     <DocsPage toc={page.data.toc}>
       <div className="zen-reading-article">
-      <ZenReadingToggle key={slug} />
-      <div className="zen-reading-secondary">
-        <ArticleNavigation posts={posts} currentUrl={page.url} />
-      </div>
+        <ZenReadingToggle key={slug} />
+        <div className="zen-reading-secondary">
+          <ArticleNavigation posts={posts} currentUrl={page.url} />
+        </div>
         <ArticleMeta
           date={page.data.date}
           category={page.data.category}
           tags={page.data.tags}
         />
-      <DocsTitle>{page.data.title}</DocsTitle>
-      {page.data.description ? (
-        <DocsDescription>{page.data.description}</DocsDescription>
-      ) : null}
-      <DocsBody>
-        <MDX components={getMDXComponents()} />
-      </DocsBody>
+        <DocsTitle>{page.data.title}</DocsTitle>
+        {page.data.description ? (
+          <DocsDescription>{page.data.description}</DocsDescription>
+        ) : null}
+        <DocsBody>
+          <MDX components={getMDXComponents()} />
+        </DocsBody>
       </div>
     </DocsPage>
   );
