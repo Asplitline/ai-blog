@@ -8,6 +8,7 @@ import {
 } from 'fumadocs-ui/layouts/notebook/page';
 import { ArticleMeta } from '@/components/blog/article-meta';
 import { ArticleNavigation } from '@/components/blog/article-navigation';
+import { ReadingAnnotations } from '@/components/blog/reading-annotations';
 import { ZenReadingToggle } from '@/components/blog/zen-reading-toggle';
 import { getMDXComponents } from '@/components/mdx';
 import { getPublishedPosts } from '@/lib/posts';
@@ -67,9 +68,11 @@ export default async function PostPage({
         {page.data.description ? (
           <DocsDescription>{page.data.description}</DocsDescription>
         ) : null}
-        <DocsBody>
-          <MDX components={getMDXComponents()} />
-        </DocsBody>
+        <ReadingAnnotations key={slug} slug={slug} title={page.data.title}>
+          <DocsBody>
+            <MDX components={getMDXComponents()} />
+          </DocsBody>
+        </ReadingAnnotations>
       </div>
     </DocsPage>
   );
