@@ -1,0 +1,184 @@
+---
+title: "Agent Engineering 学习周报 #10：工具契约、插件治理与 CI 自修复"
+description: "2026-11-20 至 2026-11-27：OpenSRE、Cursor Plugins、Stitch Skills、Firecrawl 的可验证更新，以及 Agent CLI、设计规范和故障恢复实践。"
+date: "2026-11-27"
+category: "AI Engineering"
+tags:
+  - AI Agent
+  - GitHub Trending
+  - Skills
+  - Harness
+  - Runtime
+  - Coding Agents
+  - Context Engineering
+  - Developer Tooling
+  - Weekly Review
+draft: false
+---
+
+> 统计窗口：2026-11-20 00:00 至 2026-11-27 08:04，Asia/Shanghai（UTC+8）。周五剩余时间留待下期补查。提交日期以 GitHub committer 时间为准，正文标注 UTC+8。评分属于学习价值判断。
+>
+> 来源：[GitHub Trending 日榜](https://github.com/trending) 本次读取成功；[周榜](https://github.com/trending?since=weekly) 本次访问失败，因此仅使用日榜发现候选及 GitHub API 的时间窗口提交、Release、README 交叉核验。没有完整七日热度排名。
+
+## 本周结论
+
+本周学习主线是把 Agent 的工具、技能、上下文与执行状态变成可测试的工程契约。OpenSRE 的专用工具与缓存优化、Cursor 的插件结构、Stitch 的网页设计规范提取、Firecrawl 的状态管理形成四个互补案例。
+
+## 一、本周重要更新
+
+### 1. [Tracer-Cloud/opensre](https://github.com/Tracer-Cloud/opensre) — Harness / Runtime / Coding Agents
+
+**9.5/10 · 中高 · P0**
+
+定位：自托管 CI/CD 故障诊断 Agent，读取失败运行，追踪原因，生成修复供人工审核。README 标注 public alpha，适合研究和隔离环境试验。[README](https://github.com/Tracer-Cloud/opensre/blob/main/README.md) · [官方文档](https://www.opensre.com/docs)。
+
+本周期证据（北京时间）：
+
+- [11/25 23:14：批量工具调用并在工具揭示与 Session 间保留 Prompt Cache](https://github.com/Tracer-Cloud/opensre/commit/4dce8d6827e73d847a7c76010f4ba80259ab8f75)。
+- [11/26 01:12：增加无需 Shell 的文件读取、搜索、列表工具及纯文本 Python 结果](https://github.com/Tracer-Cloud/opensre/commit/9f53bc057274394a4b5920a4b99efd7f83966764)。
+- [11/26 02:04：增加 apply_patch 工具，与系统 Prompt 中的工具名称对齐](https://github.com/Tracer-Cloud/opensre/commit/41c323cc1807337a56154b8efaa117c5869cd2f5)。
+- [11/26 08:55：v0.1.2026.11.26 Release](https://github.com/Tracer-Cloud/opensre/releases/tag/v0.1.2026.11.26)；[11/26 16:05：修复报告 HTML 清洗误删文本](https://github.com/Tracer-Cloud/opensre/commit/d3d0af888005dd6ed29cb5a5ec7223c6150b1fdf)。后者晚于 Release，不能据此认定已经打包。
+
+工程分析：专用文件工具可提供结构化参数、路径校验、可控输出和细粒度授权。批量调用可减少往返；缓存复用需要稳定的 Prompt 前缀与工具声明。以上是设计启示，具体缓存命中率与安全隔离需实验验证。
+
+实践：创建一个故意失败的测试仓库，保存 CI 日志，要求 Agent 产出失败证据、最小补丁、复测结果及 Draft PR。对照 Shell-only 和专用工具两组，记录调用数、耗时、缓存命中指标（供应商提供时）及失败率。使用临时工作目录和低权限身份。
+
+关联：[DeepSeek Superagent 架构解读](https://github.com/Asplitline/ai-blog/blob/main/content/posts/deepseek-dsh-superagent-architecture-analysis.mdx) 的 Ticket、Assignment、Mandate 与人工审核。
+
+### 2. [cursor/plugins](https://github.com/cursor/plugins) — Skills / Plugins / Harness
+
+**9.4/10 · 中 · P0**
+
+定位：官方及第三方插件集合，每个插件拥有独立目录及 .cursor-plugin/plugin.json manifest。README 提供插件清单与用途。[README](https://github.com/cursor/plugins/blob/main/README.md)。
+
+本周期证据：
+
+- [11/26 16:43：新增 Folk 插件](https://github.com/cursor/plugins/commit/fd72763042523c049e2b3993a77beb3b4951329b)，[17:04 合并](https://github.com/cursor/plugins/commit/b7b93c36be9bcc36a74db438e0fd385d660bc559)。
+- [11/26 07:23：回滚 Nooks 插件新增](https://github.com/cursor/plugins/commit/692901732566fe901f2a132c9a0e880294764aca)。回滚原因尚未核实。
+
+这些是插件目录的增删变化；以下模块是既有学习资料，发布时间未逐项核实：
+
+| 模块 | 原理与学习目标 |
+| --- | --- |
+| [continual-learning](https://github.com/cursor/plugins/tree/main/continual-learning) | 从会话提取高信号经验，增量更新 AGENTS.md；研究记忆写入门禁 |
+| [orchestrate](https://github.com/cursor/plugins/tree/main/orchestrate) | Planner、Worker、Verifier 与结构化交接；研究并行任务边界 |
+| [cli-for-agent](https://github.com/cursor/plugins/tree/main/cli-for-agent) | flags、help、错误、管道、幂等、dry-run；研究机器友好接口 |
+| [create-plugin](https://github.com/cursor/plugins/tree/main/create-plugin) | 插件脚手架与校验；研究能力分发 |
+| [pr-review-canvas](https://github.com/cursor/plugins/tree/main/pr-review-canvas) | 按重要性组织 PR Diff；研究人工审阅 |
+
+实践：为自己的任务管理 API 编写一个只读优先的 CLI 与插件，支持 JSON 输出、明确退出码、dry-run 和写操作确认。用固定测试任务评估插件加载、参数错误和重复执行。
+
+关联：[上期周报](https://github.com/Asplitline/ai-blog/blob/main/content/posts/agent-engineering-weekly-2026-11-20.mdx) 的 SkillEvaluator 和 Plannotator。插件发布应同时考虑兼容性、权限、版本与真实任务效果。
+
+### 3. [google-labs-code/stitch-skills](https://github.com/google-labs-code/stitch-skills) — Skills / Design Engineering
+
+**9.3/10 · 低中 · P0 · 前期项目更新**
+
+定位：遵循 Agent Skills 标准的设计与构建插件，支持 Stitch MCP 和多种 Coding Agent。[README](https://github.com/google-labs-code/stitch-skills/blob/main/README.md)。
+
+本周期证据：
+
+- [11/24 22:11：初步加入 live URL 输入](https://github.com/google-labs-code/stitch-skills/commit/17ee5a7896cc1130757b235b3b563d8d4b38361a)。
+- [11/25 02:44：改用本地 Puppeteer 捕获，降低供应商耦合](https://github.com/google-labs-code/stitch-skills/commit/fbaa1c1b2c9b1893da1ebc7ace1ef322e96c4741)。
+- [11/25 05:14：将 live URL 提取移动至随 Skill 分发的脚本](https://github.com/google-labs-code/stitch-skills/commit/50468f36b6910a9241c5c7e6fb2c39759535c584)。
+- [11/25 05:51：合并 PR #113](https://github.com/google-labs-code/stitch-skills/pull/113)。
+
+工程分析：网页捕获、设计规范归纳、页面生成可以形成独立步骤。脚本承担可重复的采集，模型承担语义归纳；输出 DESIGN.md 作为后续页面生成的约束。提取结果仍需要视觉核验，注意网站版权、隐私与访问授权。
+
+实践：选择一个允许访问的设计参考网站，提取色彩、字体、间距、圆角、组件层级；将规范映射到 Tailwind token 与 shadcn/ui 组件。使用相同页面任务对比有无 DESIGN.md 的产出，记录视觉一致性和组件复用率。
+
+### 4. [firecrawl/firecrawl](https://github.com/firecrawl/firecrawl) — Context Engineering / Runtime
+
+**8.8/10 · 中高 · P1**
+
+定位：网页抓取、站点遍历、内容清洗及 Agent 知识输入基础设施。README 区分 Local、Cloud、自托管服务。[README](https://github.com/firecrawl/firecrawl/blob/main/README.md) · [本地实现](https://github.com/firecrawl/firecrawl/tree/main/apps/local) · [API 实现](https://github.com/firecrawl/firecrawl/tree/main/apps/api)。
+
+本周期证据：
+
+- [11/26 08:31：专用 Crawl State Redis 与缺失状态的显式错误处理](https://github.com/firecrawl/firecrawl/commit/d355ef9020e34abe52948f8e99577bdaf4d290fc)。
+- [11/26 09:17：移除未读取的 crawl 集合](https://github.com/firecrawl/firecrawl/commit/68291b7a8c27d60b848a58f26e271be808912735)。
+- [11/27 00:21：清理 Markdown 与 HTML 中的 NUL 字符](https://github.com/firecrawl/firecrawl/commit/cb8e1c09106eaa600dafad67806fbde5e0a708a8)。
+
+工程分析：数据采集任务需要可靠状态、可观察错误和稳定输出。建议 Context Pipeline 保留 URL、抓取时间、内容哈希、清洗版本、失败原因，并将网页内容作为不可信输入处理。
+
+实践：用三页公开文档建立采集队列，模拟任务状态丢失、重复提交、空内容和异常字符；验证失败可见、可重试、来源可追溯。
+
+## 二、持续值得学习
+
+| 项目 | 能力层 | 本期证据与学习方向 |
+| --- | --- | --- |
+| [HKUDS/CLI-Anything](https://github.com/HKUDS/CLI-Anything) | Developer Tooling | 日榜出现；窗口内查询未返回默认分支提交。研究 CLI 生成、JSON 输出与真实软件 E2E 验证。9.0/10，中高 |
+| [obra/superpowers](https://github.com/obra/superpowers) | Skills / Harness | 日榜出现；窗口内查询未返回默认分支提交。延续规划、测试、验证的开发方法。9.0/10，中 |
+| [SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator) | Evaluation | 上期已介绍；用于本期插件质量实验，未核实新变化 |
+| [AG-UI](https://github.com/ag-ui-protocol/ag-ui) | Runtime / UI | 上期已介绍；用于呈现工具调用、失败、审批和结果事件，未核实新变化 |
+| [Plannotator](https://github.com/backnotprop/plannotator) | Control Plane | 上期已介绍；用于修复计划与补丁审阅，未核实新变化 |
+
+日榜同时出现 diagram-design、last30days-skill、openvino 等候选，留作后续研究。Gateway、Local Inference、Sandbox 本期未形成足够核实的更新专题，保留既有学习线索。
+
+## 三、能力层连接：可验证的 Agent Tool Workbench
+
+建议沿用上期 Agent Review Workbench，新增工具契约和证据采集能力。
+
+```text
+Trigger / Task
+  -> Policy + Mandate
+  -> Plugin / Skill
+  -> Typed Tool / CLI
+  -> Evidence + Run Events
+  -> Evaluation
+  -> Human Review
+```
+
+| 层 | 参考 | 最小实现 |
+| --- | --- | --- |
+| Skills / Plugins | Cursor Plugins、Stitch | manifest、版本、输入输出契约 |
+| Harness | OpenSRE、superpowers | 工具注册、稳定 Prompt、验证循环 |
+| Runtime | OpenSRE、DeepSeek Superagent | Run 状态、重试、人工接管 |
+| Context | Firecrawl | 来源、哈希、清洗、错误记录 |
+| Evaluation | SkillEvaluator | 固定任务、对照组、结果报告 |
+| Control Plane | AG-UI、Plannotator | 事件流、证据卡片、审批 |
+
+建议为工具调用定义以下教学用结构（非任何仓库的原始接口）：
+
+```ts
+type ToolResult = {
+  callId: string;
+  status: "success" | "failed";
+  evidence: Array<{ uri: string; digest?: string }>;
+  error?: { code: string; retryable: boolean };
+};
+```
+
+工具层负责执行结果与证据；Runtime 负责重试与状态转换；UI 负责让人理解并采取下一步行动。对于写操作，服务端独立校验授权和幂等键。
+
+## 四、周末学习实践（11/28–11/29）
+
+| 时间 | 任务 | 验收 |
+| --- | --- | --- |
+| 周六 09:00–10:30 | 阅读 Cursor 的 cli-for-agent、create-plugin | CLI 契约与 manifest 草稿 |
+| 周六 10:45–12:00 | 实现 TypeScript CLI | JSON、退出码、dry-run、错误测试 |
+| 周六 14:00–15:30 | 阅读 OpenSRE 三个工具相关提交 | 工具权限、缓存与批量调用笔记 |
+| 周六 15:45–16:45 | 构造 CI 失败与修复测试 | 日志、补丁、复测证据 |
+| 周日 09:00–11:00 | 阅读 Stitch PR #113 并提取网页设计规范 | DESIGN.md 与 token 映射 |
+| 周日 14:00–15:30 | 用同一页面任务比较两种 Skill 配置 | 两组截图、组件复用与一致性记录 |
+| 周日 15:30–16:30 | 整理实践结果到 Workbench | 工具调用卡、证据链接、人工审核入口 |
+
+### 下周（11/30–12/04）
+
+1. 为 CLI 和插件建立五条固定任务，测试正常、无权限、重复执行、超时和异常输出。
+2. 将工具调用事件接入 React / Next.js 工作台，使用 Prisma 持久化 callId、状态和证据。
+3. 模拟采集状态丢失与 Worker 中断，验证重试和恢复。
+4. 记录两组工具策略的任务完成率、调用数、耗时、Token 与缓存指标；缺失指标明确标记。
+5. 将测试分为 PR 快速门禁和 Nightly 模型评估，人工审核后提交。
+
+最小验收：失败 CI 可以生成可审阅补丁；工具输出可追溯；重复事件不会触发重复写入；设计 Skill 有可比较的效果报告。
+
+## 五、来源与核验边界
+
+- [GitHub Trending 日榜](https://github.com/trending)；[周榜入口](https://github.com/trending?since=weekly) 本次访问失败。
+- [OpenSRE 提交](https://github.com/Tracer-Cloud/opensre/commits) · [Releases](https://github.com/Tracer-Cloud/opensre/releases)
+- [Cursor Plugins 提交](https://github.com/cursor/plugins/commits)
+- [Stitch Skills 提交](https://github.com/google-labs-code/stitch-skills/commits)
+- [Firecrawl 提交](https://github.com/firecrawl/firecrawl/commits)
+
+通过 GitHub API 检查上述重点仓库窗口内提交与近期 Release。除 OpenSRE 外，其余三个重点仓库在所查最近五条 Release 中未发现窗口内发布；此结论受查询范围限制。本文未执行各项目安装、源码测试或性能基准，具体工程收益属于待验证的学习假设。
