@@ -30,11 +30,10 @@ export function ZenReadingToggle() {
       window.scrollBy({ top: element.getBoundingClientRect().top - top, behavior: 'instant' });
     }
     anchor.current = null;
+    return () => {
+      delete document.documentElement.dataset.zenReading;
+    };
   }, [enabled]);
-
-  useEffect(() => () => {
-    delete document.documentElement.dataset.zenReading;
-  }, []);
 
   useEffect(() => {
     if (!enabled) return;
