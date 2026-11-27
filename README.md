@@ -21,7 +21,32 @@ pnpm dev
 
 访问 http://localhost:3000。
 
-基于 Next.js、React、Fumadocs 和 Tailwind CSS，采用静态站点部署。
+## 技术架构
+
+基于 Next.js 16、React 19、TypeScript、Fumadocs 和 Tailwind CSS 4，采用静态导出（`out/`）与 Vercel 部署。
+
+| 目录 | 职责 |
+| --- | --- |
+| `app/` | 页面、路由与布局 |
+| `components/` | 阅读、搜索和批注交互 |
+| `lib/` | 内容聚合、数据模型和文本定位 |
+| `content/posts/` | MDX 文章 |
+
+批注通过 Selection / Range API 定位原文，使用浏览器 localStorage 保存，支持 JSON / Markdown 导出。当前无需后端或数据库，暂不支持跨设备同步和导入。
+
+## 开发与发布
+
+```bash
+pnpm typecheck
+pnpm build
+```
+
+- 优先复用现有组件与主题变量，保持静态导出兼容。
+- 文章使用 MDX，包含标题、摘要、日期、分类、标签和 draft 状态。
+- 每周五生成 Agent Engineering 学习周报，通过 Draft PR 人工审核。
+- Asplitline 发起的同仓库非 Draft PR 在符合 CI 检查条件后自动 Squash Merge，Vercel 随 main 更新部署。
+
+详细架构和规范见下方文档；AI 开发工具可从 [AGENTS.md](AGENTS.md) 获取入口。
 
 ## 项目文档
 
