@@ -24,6 +24,7 @@ export function ReadingAnnotations({ slug, title, children }: {
   const [panel, setPanel] = useState(false);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
+  const editing = editor !== null;
   const [missing, setMissing] = useState<string[]>([]);
   const [fallback, setFallback] = useState<{ x: number; y: number; width: number; height: number }[]>([]);
   const current = notes.filter(note => note.slug === slug).sort((a, b) => a.start - b.start);
@@ -56,7 +57,7 @@ export function ReadingAnnotations({ slug, title, children }: {
     }
     ranges.current = map;
     setMissing(unresolved);
-    if (typeof Highlight !== 'undefined' && CSS.highlights) {
+    if (typeof Highlight !== 'undefined' && typeof CSS !== 'undefined' && CSS.highlights) {
       CSS.highlights.set('reading-annotations', new Highlight(...map.values()));
       setFallback([]);
       return () => { CSS.highlights.delete('reading-annotations'); };
@@ -85,7 +86,9 @@ export function ReadingAnnotations({ slug, title, children }: {
   useEffect(() => {
     if (!ready || editor) return;
     let timer: ReturnType<typeof setTimeout>;
+    let pointerDown = false;
     function inspect() {
+      if (pointerDown) return;
       const selection = window.getSelection();
       const element = root.current;
       if (!element || !selection || selection.isCollapsed || !selection.rangeCount) return;
@@ -100,15 +103,23 @@ export function ReadingAnnotations({ slug, title, children }: {
       clearTimeout(timer);
       timer = setTimeout(inspect, 350);
     }
+    function startPointer() { pointerDown = true; clearTimeout(timer); }
+    function endPointer() { pointerDown = false; schedule(); }
     document.addEventListener('selectionchange', schedule);
+    document.addEventListener('pointerdown', startPointer);
+    document.addEventListener('pointerup', endPointer);
+    document.addEventListener('pointercancel', endPointer);
     return () => {
       clearTimeout(timer);
       document.removeEventListener('selectionchange', schedule);
+      document.removeEventListener('pointerdown', startPointer);
+      document.removeEventListener('pointerup', endPointer);
+      document.removeEventListener('pointercancel', endPointer);
     };
   }, [ready, editor]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editing) return;
     // Keep the native selection visible; focus the input only on desktop.
     if (window.matchMedia('(pointer: fine)').matches) popup.current?.querySelector('textarea')?.focus({ preventScroll: true });
     function onKey(event: KeyboardEvent) {
@@ -120,7 +131,7 @@ export function ReadingAnnotations({ slug, title, children }: {
     }
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
-  }, [Boolean(editor), dismiss]);
+  }, [editing, dismiss]);
 
   function persist(change: (previous: Annotation[]) => Annotation[]) {
     try {
@@ -186,7 +197,7 @@ export function ReadingAnnotations({ slug, title, children }: {
         </button>
       </div>
       <div ref={root} onClick={event => {
-        if (editor || !window.getSelection()?.isCollapsed) return;
+        if (editor || !window.getSelection()?.isCollapsed || (event.target instanceof Element && event.target.closest('a, button, input, textarea, select'))) return;
         const found = current.find(note => Array.from(ranges.current.get(note.id)?.getClientRects() ?? []).some(rect =>
           event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom));
         if (found) { event.preventDefault(); edit(found); }
