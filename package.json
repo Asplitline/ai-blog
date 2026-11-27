@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
     "start": "next start",
     "lint": "next lint"
   },
