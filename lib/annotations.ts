@@ -54,8 +54,12 @@ export function locate(root: HTMLElement, note: Annotation): Range | null {
     matches.push({ start: i, score: Number(prefix === note.prefix) + Number(suffix === note.suffix) });
   }
   matches.sort((a, b) => b.score - a.score);
-  if (!matches.length || (matches.length > 1 && matches[0].score === matches[1].score)) return null;
-  const start = matches[0].start;
+  if (!matches.length) return null;
+  const best = matches.filter(match => match.score === matches[0].score);
+  // An unchanged offset plus matching surrounding text resolves repeated quotations.
+  const chosen = best.length === 1 ? best[0] : best.find(match => match.start === note.start && match.score === 2);
+  if (!chosen) return null;
+  const start = chosen.start;
   const end = start + note.quote.length;
   const range = document.createRange();
   let offset = 0;
