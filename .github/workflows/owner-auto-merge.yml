@@ -33,7 +33,7 @@ jobs:
             if ! jq -e '.state == "success" and any(.statuses[]; .context == "Vercel" and .state == "success")' <<< "$statuses" >/dev/null; then
               continue
             fi
-            checks=$(gh api --paginate "repos/$GH_REPO/commits/$sha/check-runs?filter=latest&per_page=100" --jq '.check_runs[] | select(.name != "merge") | {status,conclusion}')
+            checks=$(gh api --paginate "repos/$GH_REPO/commits/$sha/check-runs?filter=latest&per_page=100" --jq '.check_runs[] | {status,conclusion}')
             if ! jq -es 'all(.[]; .status == "completed" and (.conclusion == "success" or .conclusion == "neutral" or .conclusion == "skipped"))' <<< "$checks" >/dev/null; then
               continue
             fi
