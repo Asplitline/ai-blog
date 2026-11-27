@@ -58,3 +58,7 @@ next.config.mjs                    Next.js 静态导出配置
 数据保存在 `localStorage` 的 `ai-blog:annotations:v1` 键中，包含文章 slug、标题、URL、引用原文、前后文、文本偏移、批注内容和时间戳。文章更新后会尝试依据引用及上下文恢复定位，无法定位的批注仍保留在列表中。
 
 批注交互由 `components/blog/reading-annotations.tsx` 管理，文本锚点捕获与恢复由 `lib/annotations.ts` 提供。高亮优先使用 CSS Custom Highlight API，旧浏览器使用矩形覆盖层。保持 MDX 渲染与批注存储分离，避免直接修改正文 DOM。
+
+### 批注交互
+
+选区完成后克隆 Range，编辑期间通过独立高亮保持原文可见；弹窗显示完整引用预览，并根据实际尺寸及视口计算位置。保存、悬停和定位使用独立强调状态，不改变持久化 schema。批注面板采用桌面抽屉、移动端底部面板，动效遵循 prefers-reduced-motion。无法定位的批注保留记录并禁用原文定位操作。
